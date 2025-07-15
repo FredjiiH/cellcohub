@@ -9,6 +9,7 @@ import axios from 'axios';
 // Check Environment Access
 console.log('REACT_APP_MONDAY_API_TOKEN:', process.env.REACT_APP_MONDAY_API_TOKEN);
 console.log('REACT_APP_MONDAY_BOARD_ID:', process.env.REACT_APP_MONDAY_BOARD_ID);
+console.log('REACT_APP_BACKEND_URL:', process.env.REACT_APP_BACKEND_URL);
 
 // Trigger deployment - small change to force rebuild
 
@@ -77,16 +78,29 @@ function App() {
   useEffect(() => {
     if (!selectedGroup) return;
     const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
+    console.log('Backend URL for overrides:', backendUrl);
     axios.get(`${backendUrl}/api/overrides/${selectedGroup}`).then(res => {
       setOverrides(res.data);
+    }).catch(err => {
+      console.error('Error fetching overrides:', err);
+      // Set empty overrides if backend is not available
+      setOverrides({});
     });
   }, [selectedGroup]);
 
   // Fetch team from backend on mount
   useEffect(() => {
     const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
+    console.log('Backend URL for team:', backendUrl);
     axios.get(`${backendUrl}/api/team`).then(res => {
       setTeam(res.data);
+    }).catch(err => {
+      console.error('Error fetching team:', err);
+      // Set default team if backend is not available
+      setTeam([
+        { name: 'Fredrik Helander', capacity: 40 },
+        { name: 'Fanny Wilgodt', capacity: 40 }
+      ]);
     });
   }, []);
 
@@ -116,22 +130,32 @@ function App() {
   // Handle override change
   const handleOverrideChange = async (name: string, value: number) => {
     const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
-    await axios.post(`${backendUrl}/api/overrides/${selectedGroup}`, { name, capacity: value });
-    setOverrides(prev => ({ ...prev, [name]: value }));
+    try {
+      await axios.post(`${backendUrl}/api/overrides/${selectedGroup}`, { name, capacity: value });
+      setOverrides(prev => ({ ...prev, [name]: value }));
+    } catch (err) {
+      console.error('Error saving override:', err);
+      alert('Failed to save override. Backend might be unavailable.');
+    }
   };
   // Handle reset override
   const handleResetOverride = async (name: string) => {
     const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
-    await axios.delete(`${backendUrl}/api/overrides/${selectedGroup}/${encodeURIComponent(name)}`);
-    setOverrides(prev => {
-      const copy = { ...prev };
-      delete copy[name];
-      return copy;
-    });
-    // If the reset member is currently selected, update the input to the default value
-    if (overrideMember === name) {
-      const defaultCapacity = team.find(m => m.name === name)?.capacity || 40;
-      setPendingOverride(defaultCapacity);
+    try {
+      await axios.delete(`${backendUrl}/api/overrides/${selectedGroup}/${encodeURIComponent(name)}`);
+      setOverrides(prev => {
+        const copy = { ...prev };
+        delete copy[name];
+        return copy;
+      });
+      // If the reset member is currently selected, update the input to the default value
+      if (overrideMember === name) {
+        const defaultCapacity = team.find(m => m.name === name)?.capacity || 40;
+        setPendingOverride(defaultCapacity);
+      }
+    } catch (err) {
+      console.error('Error resetting override:', err);
+      alert('Failed to reset override. Backend might be unavailable.');
     }
   };
 
