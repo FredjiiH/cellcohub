@@ -23,8 +23,8 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "CI=false react-scripts build",
-    "build-frontend": "CI=false react-scripts build",
+    "build": "bash build.sh",
+    "build-frontend": "bash build.sh",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
