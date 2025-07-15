@@ -3,6 +3,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
+const { validateToken, checkDomain } = require('./authMiddleware');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -29,6 +30,9 @@ function readOverrides() {
 function writeOverrides(data) {
   fs.writeFileSync(OVERRIDES_FILE, JSON.stringify(data, null, 2));
 }
+
+// Apply authentication to all API routes
+app.use('/api', validateToken, checkDomain);
 
 // Get all team members
 app.get('/api/team', (req, res) => {

@@ -9,11 +9,12 @@
     "deploy": "npm start"
   },
   "dependencies": {
-    "express": "^5.1.0",
+    "@azure/msal-node": "^3.6.3",
+    "body-parser": "^2.2.0",
     "cors": "^2.8.5",
-    "body-parser": "^2.2.0"
+    "express": "^5.1.0"
   },
   "engines": {
     "node": ">=16.0.0"
   }
-} 
+}

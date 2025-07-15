@@ -1,10 +1,16 @@
-import React, { useEffect, useState } from 'react';
-import './App.css';
-import CapacityManager from './components/CapacityManager';
+import React, { useState, useEffect } from 'react';
+import { MsalProvider, AuthenticatedTemplate, UnauthenticatedTemplate, useMsal } from '@azure/msal-react';
+import { PublicClientApplication } from '@azure/msal-browser';
+import { msalConfig } from './authConfig';
+import Login from './components/Login';
 import WorkloadDashboard from './components/WorkloadDashboard';
+import CapacityManager from './components/CapacityManager';
 import BoardInspector from './components/BoardInspector';
-import { fetchTasks, Task, fetchGroups, Group } from './api/monday';
+import { fetchGroups, fetchTasks, Task, Group } from './api/monday';
 import axios from 'axios';
+
+// Initialize MSAL
+const msalInstance = new PublicClientApplication(msalConfig);
 
 // Check Environment Access
 console.log('REACT_APP_MONDAY_API_TOKEN:', process.env.REACT_APP_MONDAY_API_TOKEN);
@@ -18,7 +24,15 @@ interface TeamMember {
   capacity: number;
 }
 
-function App() {
+interface User {
+  name: string;
+  email: string;
+  account: any;
+}
+
+function AppContent() {
+  const { instance } = useMsal();
+  const [user, setUser] = useState<User | null>(null);
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [workload, setWorkload] = useState<{ [name: string]: number }>({});
@@ -58,51 +72,98 @@ function App() {
     // eslint-disable-next-line
   }, [overrideMember]);
 
+  // Handle login success
+  const handleLoginSuccess = (userData: User) => {
+    setUser(userData);
+  };
+
+  // Handle logout
+  const handleLogout = () => {
+    instance.logout();
+    setUser(null);
+  };
+
   // Fetch groups
   useEffect(() => {
+    if (!user) return;
     fetchGroups().then(gs => {
       setGroups(gs);
       if (gs.length > 0) setSelectedGroup(gs[0].id);
     });
-  }, []);
+  }, [user]);
 
   // Fetch tasks
   useEffect(() => {
+    if (!user) return;
     fetchTasks().then(ts => {
       setTasks(ts);
       console.log('All tasks with groupId:', ts);
     });
-  }, []);
+  }, [user]);
 
   // Fetch overrides for selected group
   useEffect(() => {
-    if (!selectedGroup) return;
+    if (!selectedGroup || !user) return;
     const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
     console.log('Backend URL for overrides:', backendUrl);
-    axios.get(`${backendUrl}/api/overrides/${selectedGroup}`).then(res => {
-      setOverrides(res.data);
+    
+    // Get access token for backend
+    instance.acquireTokenSilent({
+      scopes: ['User.Read'],
+      account: user.account
+    }).then(response => {
+      axios.get(`${backendUrl}/api/overrides/${selectedGroup}`, {
+        headers: {
+          'Authorization': `Bearer ${response.accessToken}`,
+          'x-user-email': user.email,
+          'x-user-name': user.name
+        }
+      }).then(res => {
+        setOverrides(res.data);
+      }).catch(err => {
+        console.error('Error fetching overrides:', err);
+        setOverrides({});
+      });
     }).catch(err => {
-      console.error('Error fetching overrides:', err);
-      // Set empty overrides if backend is not available
+      console.error('Error getting access token:', err);
       setOverrides({});
     });
-  }, [selectedGroup]);
+  }, [selectedGroup, user, instance]);
 
   // Fetch team from backend on mount
   useEffect(() => {
+    if (!user) return;
     const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
     console.log('Backend URL for team:', backendUrl);
-    axios.get(`${backendUrl}/api/team`).then(res => {
-      setTeam(res.data);
+    
+    // Get access token for backend
+    instance.acquireTokenSilent({
+      scopes: ['User.Read'],
+      account: user.account
+    }).then(response => {
+      axios.get(`${backendUrl}/api/team`, {
+        headers: {
+          'Authorization': `Bearer ${response.accessToken}`,
+          'x-user-email': user.email,
+          'x-user-name': user.name
+        }
+      }).then(res => {
+        setTeam(res.data);
+      }).catch(err => {
+        console.error('Error fetching team:', err);
+        setTeam([
+          { name: 'Fredrik Helander', capacity: 40 },
+          { name: 'Fanny Wilgodt', capacity: 40 }
+        ]);
+      });
     }).catch(err => {
-      console.error('Error fetching team:', err);
-      // Set default team if backend is not available
+      console.error('Error getting access token:', err);
       setTeam([
         { name: 'Fredrik Helander', capacity: 40 },
         { name: 'Fanny Wilgodt', capacity: 40 }
       ]);
     });
-  }, []);
+  }, [user, instance]);
 
   // Workload calculation with main/subitem logic
   useEffect(() => {
@@ -129,20 +190,48 @@ function App() {
 
   // Handle override change
   const handleOverrideChange = async (name: string, value: number) => {
+    if (!user) return;
     const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
     try {
-      await axios.post(`${backendUrl}/api/overrides/${selectedGroup}`, { name, capacity: value });
+      const response = await instance.acquireTokenSilent({
+        scopes: ['User.Read'],
+        account: user.account
+      });
+      
+      await axios.post(`${backendUrl}/api/overrides/${selectedGroup}`, 
+        { name, capacity: value },
+        {
+          headers: {
+            'Authorization': `Bearer ${response.accessToken}`,
+            'x-user-email': user.email,
+            'x-user-name': user.name
+          }
+        }
+      );
       setOverrides(prev => ({ ...prev, [name]: value }));
     } catch (err) {
       console.error('Error saving override:', err);
       alert('Failed to save override. Backend might be unavailable.');
     }
   };
+  
   // Handle reset override
   const handleResetOverride = async (name: string) => {
+    if (!user) return;
     const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
     try {
-      await axios.delete(`${backendUrl}/api/overrides/${selectedGroup}/${encodeURIComponent(name)}`);
+      const response = await instance.acquireTokenSilent({
+        scopes: ['User.Read'],
+        account: user.account
+      });
+      
+      await axios.delete(`${backendUrl}/api/overrides/${selectedGroup}/${encodeURIComponent(name)}`, {
+        headers: {
+          'Authorization': `Bearer ${response.accessToken}`,
+          'x-user-email': user.email,
+          'x-user-name': user.name
+        }
+      });
       setOverrides(prev => {
         const copy = { ...prev };
         delete copy[name];
@@ -161,6 +250,35 @@ function App() {
 
   return (
     <div className="App">
+      {user && (
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          padding: '10px 20px',
+          backgroundColor: '#f8f9fa',
+          borderBottom: '1px solid #dee2e6'
+        }}>
+          <div>
+            <span style={{ fontWeight: 'bold' }}>Welcome, {user.name}</span>
+            <span style={{ color: '#666', marginLeft: '10px' }}>({user.email})</span>
+          </div>
+          <button 
+            onClick={handleLogout}
+            style={{
+              backgroundColor: '#dc3545',
+              color: 'white',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Sign Out
+          </button>
+        </div>
+      )}
+      
       <h1>Monday.com Workload Tracker</h1>
       <div style={{ margin: '20px 0' }}>
         <button onClick={() => setTab('dashboard')} style={{ marginRight: 10, fontWeight: tab === 'dashboard' ? 'bold' : undefined }}>Dashboard</button>
@@ -232,6 +350,25 @@ function App() {
         </>
       )}
     </div>
+  );
+}
+
+function App() {
+  const [user, setUser] = useState<User | null>(null);
+
+  const handleLoginSuccess = (userData: User) => {
+    setUser(userData);
+  };
+
+  return (
+    <MsalProvider instance={msalInstance}>
+      <UnauthenticatedTemplate>
+        <Login onLoginSuccess={handleLoginSuccess} />
+      </UnauthenticatedTemplate>
+      <AuthenticatedTemplate>
+        <AppContent />
+      </AuthenticatedTemplate>
+    </MsalProvider>
   );
 }
 
