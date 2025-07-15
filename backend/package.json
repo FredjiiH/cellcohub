@@ -1,0 +1,19 @@
+{
+  "name": "monday-workload-backend",
+  "version": "1.0.0",
+  "description": "Backend for Monday.com workload tracker",
+  "main": "backend.js",
+  "scripts": {
+    "start": "node backend.js",
+    "dev": "nodemon backend.js",
+    "deploy": "npm start"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "cors": "^2.8.5",
+    "body-parser": "^2.2.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+} 
