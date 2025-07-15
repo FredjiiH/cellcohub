@@ -23,8 +23,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "bash build.sh",
-    "build-frontend": "bash build.sh",
+    "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
