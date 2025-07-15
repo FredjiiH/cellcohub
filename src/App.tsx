@@ -8,7 +8,7 @@ import axios from 'axios';
 
 // Check Environment Access
 console.log('REACT_APP_MONDAY_API_TOKEN:', process.env.REACT_APP_MONDAY_API_TOKEN);
-console.log('REACT_APP_MONDAY_BOARD_ID:', process.env.REACT_APP_MONDAY_BOARD_ID);
+console.log('REACT_APP_MONDAY_BOARD_ID:', process.env.REACT_APP_MONDAY_API_TOKEN);
 
 interface TeamMember {
   name: string;
@@ -79,6 +79,13 @@ function App() {
     });
   }, [selectedGroup]);
 
+  // Fetch team from backend on mount
+  useEffect(() => {
+    axios.get('http://localhost:4000/api/team').then(res => {
+      setTeam(res.data);
+    });
+  }, []);
+
   // Workload calculation with main/subitem logic
   useEffect(() => {
     let filteredTasks = tasks;
@@ -115,6 +122,11 @@ function App() {
       delete copy[name];
       return copy;
     });
+    // If the reset member is currently selected, update the input to the default value
+    if (overrideMember === name) {
+      const defaultCapacity = team.find(m => m.name === name)?.capacity || 40;
+      setPendingOverride(defaultCapacity);
+    }
   };
 
   return (

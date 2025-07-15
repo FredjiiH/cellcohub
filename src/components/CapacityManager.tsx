@@ -14,18 +14,11 @@ const CapacityManager: React.FC<{
 }> = ({ team, setTeam }) => {
   const [name, setName] = useState('');
   const [capacity, setCapacity] = useState<number>(40);
-  const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<number>(40);
 
-  // Fetch team from backend on mount
-  useEffect(() => {
-    axios.get(API_URL).then(res => {
-      setTeam(res.data);
-      setLoading(false);
-    });
-  }, [setTeam]);
-
+  // Remove the useEffect that fetches the team from the backend
+  // Remove the loading state/logic
   const addMember = async () => {
     if (name && capacity > 0 && !team.some(m => m.name === name)) {
       const res = await axios.post(API_URL, { name, capacity });
@@ -55,7 +48,8 @@ const CapacityManager: React.FC<{
     setTeam(res.data);
   };
 
-  if (loading) return <div>Loading team...</div>;
+  // Remove loading check
+  // if (loading) return <div>Loading team...</div>;
 
   return (
     <div>
