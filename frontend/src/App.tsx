@@ -8,7 +8,9 @@ import axios from 'axios';
 
 // Check Environment Access
 console.log('REACT_APP_MONDAY_API_TOKEN:', process.env.REACT_APP_MONDAY_API_TOKEN);
-console.log('REACT_APP_MONDAY_BOARD_ID:', process.env.REACT_APP_MONDAY_API_TOKEN);
+console.log('REACT_APP_MONDAY_BOARD_ID:', process.env.REACT_APP_MONDAY_BOARD_ID);
+
+// Trigger deployment - small change to force rebuild
 
 interface TeamMember {
   name: string;
