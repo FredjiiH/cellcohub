@@ -4,7 +4,7 @@ import { Configuration, PopupRequest } from "@azure/msal-browser";
 export const msalConfig: Configuration = {
   auth: {
     clientId: process.env.REACT_APP_AZURE_CLIENT_ID || "", // You'll get this from Azure AD
-    authority: `https://login.microsoftonline.com/common`, // Use 'common' for multi-tenant
+    authority: `https://login.microsoftonline.com/${process.env.REACT_APP_AZURE_TENANT_ID || 'common'}`, // Use your specific tenant ID
     redirectUri: window.location.origin, // Redirect back to your app
   },
   cache: {
