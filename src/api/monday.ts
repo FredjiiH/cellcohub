@@ -1,9 +1,14 @@
 import axios from 'axios';
 
 // Monday.com API configuration
-const API_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjUzODY0MTQ5MCwiYWFpIjoxMSwidWlkIjo3MjM2MzUxOCwiaWFkIjoiMjAyNS0wNy0xNFQwOTo1Mzo1Ny4wMjZaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6MjAwNDIyNTEsInJnbiI6ImV1YzEifQ.e1BMyuqkZPwrnzQjqnJgoDORiLZ5LT33jlCPOAK3i3g';
-const BOARD_ID = '2038576678';
+const API_TOKEN = process.env.REACT_APP_MONDAY_API_TOKEN;
+const BOARD_ID = process.env.REACT_APP_MONDAY_BOARD_ID || '2038576678';
 const API_URL = 'https://api.monday.com/v2';
+
+// Validate that API token is available
+if (!API_TOKEN) {
+  throw new Error('REACT_APP_MONDAY_API_TOKEN environment variable is required');
+}
 
 const headers = {
   'Authorization': API_TOKEN,
