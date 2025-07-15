@@ -5,6 +5,12 @@ const API_TOKEN = process.env.REACT_APP_MONDAY_API_TOKEN;
 const BOARD_ID = process.env.REACT_APP_MONDAY_BOARD_ID || '2038576678';
 const API_URL = 'https://api.monday.com/v2';
 
+// Debug environment variables
+console.log('Environment variables:', {
+  REACT_APP_MONDAY_API_TOKEN: process.env.REACT_APP_MONDAY_API_TOKEN ? 'SET' : 'NOT SET',
+  REACT_APP_MONDAY_BOARD_ID: process.env.REACT_APP_MONDAY_BOARD_ID || 'NOT SET'
+});
+
 // Validate that API token is available
 if (!API_TOKEN) {
   throw new Error('REACT_APP_MONDAY_API_TOKEN environment variable is required');
@@ -13,6 +19,7 @@ if (!API_TOKEN) {
 const headers = {
   'Authorization': API_TOKEN,
   'Content-Type': 'application/json',
+  'API-Version': '2024-01'
 };
 
 export interface Task {
@@ -53,10 +60,13 @@ export async function fetchBoardColumns(): Promise<Column[]> {
   `;
 
   try {
+    console.log('Making API call to Monday.com with headers:', headers);
     const response = await axios.post(API_URL, { query }, { headers });
+    console.log('API response received:', response.status);
     return response.data.data.boards[0].columns;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching board columns:', error);
+    console.error('Error details:', error.response?.data || error.message);
     return [];
   }
 }
@@ -299,10 +309,13 @@ export async function fetchGroups(): Promise<Group[]> {
     }
   `;
   try {
+    console.log('Making API call to fetch groups with headers:', headers);
     const response = await axios.post(API_URL, { query }, { headers });
+    console.log('Groups API response received:', response.status);
     return response.data.data.boards[0].groups;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching groups:', error);
+    console.error('Error details:', error.response?.data || error.message);
     return [];
   }
 } 

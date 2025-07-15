@@ -6,6 +6,10 @@ import BoardInspector from './components/BoardInspector';
 import { fetchTasks, Task, fetchGroups, Group } from './api/monday';
 import axios from 'axios';
 
+// Check Environment Access
+console.log('REACT_APP_MONDAY_API_TOKEN:', process.env.REACT_APP_MONDAY_API_TOKEN);
+console.log('REACT_APP_MONDAY_BOARD_ID:', process.env.REACT_APP_MONDAY_BOARD_ID);
+
 interface TeamMember {
   name: string;
   capacity: number;
