@@ -17,8 +17,6 @@ const CapacityManager: React.FC<{
   const [editing, setEditing] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<number>(40);
 
-  // Remove the useEffect that fetches the team from the backend
-  // Remove the loading state/logic
   const addMember = async () => {
     if (name && capacity > 0 && !team.some(m => m.name === name)) {
       const res = await axios.post(API_URL, { name, capacity });
@@ -48,52 +46,233 @@ const CapacityManager: React.FC<{
     setTeam(res.data);
   };
 
-  // Remove loading check
-  // if (loading) return <div>Loading team...</div>;
-
   return (
-    <div>
-      <h2>Team Member Capacity</h2>
-      <input
-        type="text"
-        placeholder="Name"
-        value={name}
-        onChange={e => setName(e.target.value)}
-      />
-      <input
-        type="number"
-        placeholder="Capacity (hrs)"
-        value={capacity}
-        onChange={e => setCapacity(Number(e.target.value))}
-        min={1}
-      />
-      <button onClick={addMember} disabled={!name || team.some(m => m.name === name)}>Add Member</button>
-      <ul>
-        {team.map((member, idx) => (
-          <li key={idx} style={{ marginBottom: 8 }}>
-            {editing === member.name ? (
-              <>
-                <span style={{ fontWeight: 'bold' }}>{member.name}:</span> {' '}
-                <input
-                  type="number"
-                  value={editValue}
-                  min={1}
-                  style={{ width: 60, marginRight: 8 }}
-                  onChange={e => setEditValue(Number(e.target.value))}
-                /> hrs
-                <button style={{ marginLeft: 8 }} onClick={() => saveEdit(member)}>Save</button>
-                <button style={{ marginLeft: 8 }} onClick={cancelEdit}>Cancel</button>
-              </>
-            ) : (
-              <>
-                {member.name}: {member.capacity} hrs
-                <button style={{ marginLeft: 8 }} onClick={() => startEdit(member)}>Edit</button>
-                <button style={{ marginLeft: 8 }} onClick={() => deleteMember(member.name)}>Delete</button>
-              </>
-            )}
-          </li>
-        ))}
-      </ul>
+    <div style={{ padding: '20px' }}>
+      <h2 style={{ 
+        textAlign: 'center', 
+        marginBottom: '30px', 
+        color: '#333', 
+        fontSize: '1.5rem',
+        fontWeight: '600'
+      }}>
+        Team Member Capacity
+      </h2>
+      
+      <div style={{ 
+        display: 'flex', 
+        gap: '10px', 
+        justifyContent: 'center', 
+        alignItems: 'center',
+        marginBottom: '30px',
+        flexWrap: 'wrap'
+      }}>
+        <input
+          type="text"
+          placeholder="Name"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          style={{
+            padding: '12px 16px',
+            border: '2px solid #e1e5e9',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: '500',
+            color: '#333',
+            background: '#ffffff',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+            minWidth: '150px'
+          }}
+          onFocus={(e) => {
+            e.target.style.borderColor = '#0073ea';
+            e.target.style.boxShadow = '0 0 0 3px rgba(0, 115, 234, 0.1)';
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor = '#e1e5e9';
+            e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+          }}
+        />
+        <input
+          type="number"
+          placeholder="Capacity (hrs)"
+          value={capacity}
+          onChange={e => setCapacity(Number(e.target.value))}
+          min={1}
+          style={{
+            padding: '12px 16px',
+            border: '2px solid #e1e5e9',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: '500',
+            color: '#333',
+            background: '#ffffff',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+            width: '120px'
+          }}
+          onFocus={(e) => {
+            e.target.style.borderColor = '#0073ea';
+            e.target.style.boxShadow = '0 0 0 3px rgba(0, 115, 234, 0.1)';
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor = '#e1e5e9';
+            e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+          }}
+        />
+        <button 
+          onClick={addMember} 
+          disabled={!name || team.some(m => m.name === name)}
+          style={{
+            padding: '12px 24px',
+            backgroundColor: !name || team.some(m => m.name === name) ? '#6c757d' : '#28a745',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: !name || team.some(m => m.name === name) ? 'not-allowed' : 'pointer',
+            fontSize: '14px',
+            fontWeight: '500',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 2px 4px rgba(40, 167, 69, 0.2)'
+          }}
+          onMouseEnter={(e) => {
+            if (!(!name || team.some(m => m.name === name))) {
+              (e.target as HTMLElement).style.backgroundColor = '#218838';
+              (e.target as HTMLElement).style.transform = 'translateY(-1px)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!(!name || team.some(m => m.name === name))) {
+              (e.target as HTMLElement).style.backgroundColor = '#28a745';
+              (e.target as HTMLElement).style.transform = 'translateY(0)';
+            }
+          }}
+        >
+          Add Member
+        </button>
+      </div>
+      
+      <div style={{ 
+        backgroundColor: '#ffffff',
+        borderRadius: '12px',
+        padding: '20px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+      }}>
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+          {team.map((member, idx) => (
+            <li key={idx} style={{ 
+              marginBottom: '15px',
+              padding: '15px',
+              backgroundColor: '#f8f9fa',
+              borderRadius: '8px',
+              border: '1px solid #dee2e6',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '10px'
+            }}>
+              {editing === member.name ? (
+                <>
+                  <span style={{ fontWeight: '600', color: '#333', fontSize: '16px' }}>
+                    {member.name}:
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <input
+                      type="number"
+                      value={editValue}
+                      min={1}
+                      className="capacity-input"
+                      style={{ width: '80px' }}
+                      onChange={e => setEditValue(Number(e.target.value))}
+                    />
+                    <span style={{ color: '#666', fontSize: '14px' }}>hrs</span>
+                    <button 
+                      style={{ 
+                        padding: '8px 16px',
+                        backgroundColor: '#28a745',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        transition: 'background-color 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = '#218838'}
+                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = '#28a745'}
+                      onClick={() => saveEdit(member)}
+                    >
+                      Save
+                    </button>
+                    <button 
+                      style={{ 
+                        padding: '8px 16px',
+                        backgroundColor: '#6c757d',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        transition: 'background-color 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = '#5a6268'}
+                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = '#6c757d'}
+                      onClick={cancelEdit}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <span style={{ fontWeight: '600', color: '#333', fontSize: '16px' }}>
+                    {member.name}: {member.capacity} hrs
+                  </span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button 
+                      style={{ 
+                        padding: '8px 16px',
+                        backgroundColor: '#0073ea',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        transition: 'background-color 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = '#005bb5'}
+                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = '#0073ea'}
+                      onClick={() => startEdit(member)}
+                    >
+                      Edit
+                    </button>
+                    <button 
+                      style={{ 
+                        padding: '8px 16px',
+                        backgroundColor: '#6c757d',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        transition: 'background-color 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = '#5a6268'}
+                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = '#6c757d'}
+                      onClick={() => deleteMember(member.name)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 };

@@ -8,6 +8,7 @@ import CapacityManager from './components/CapacityManager';
 import BoardInspector from './components/BoardInspector';
 import { fetchGroups, fetchTasks, Task, Group } from './api/monday';
 import axios from 'axios';
+import './App.css';
 
 // Initialize MSAL
 const msalInstance = new PublicClientApplication(msalConfig);
@@ -282,24 +283,34 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center',
-          padding: '10px 20px',
-          backgroundColor: '#f8f9fa',
-          borderBottom: '1px solid #dee2e6'
+          padding: '15px 20px',
+          backgroundColor: '#ffffff',
+          borderBottom: '1px solid #e1e5e9',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          position: 'sticky',
+          top: 0,
+          zIndex: 1000
         }}>
           <div>
-            <span style={{ fontWeight: 'bold' }}>Welcome, {user.name}</span>
-            <span style={{ color: '#666', marginLeft: '10px' }}>({user.email})</span>
+            <span style={{ fontWeight: '600', fontSize: '16px', color: '#333' }}>Welcome, {user.name}</span>
+            <span style={{ color: '#666', marginLeft: '10px', fontSize: '14px' }}>({user.email})</span>
           </div>
           <button 
             onClick={handleLogoutWithConfirmation}
             style={{
-              backgroundColor: '#dc3545',
+              backgroundColor: '#6c757d',
               color: 'white',
               border: 'none',
-              padding: '8px 16px',
-              borderRadius: '4px',
-              cursor: 'pointer'
+              padding: '10px 20px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '500',
+              transition: 'background-color 0.2s ease',
+              boxShadow: '0 2px 4px rgba(108, 117, 125, 0.2)'
             }}
+            onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = '#5a6268'}
+            onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = '#6c757d'}
           >
             Sign Out
           </button>
@@ -312,70 +323,273 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
         padding: '20px',
         minHeight: 'calc(100vh - 80px)'
       }}>
-        <h1 style={{ textAlign: 'center', marginBottom: '30px' }}>Monday.com Workload Tracker</h1>
-        <div style={{ textAlign: 'center', margin: '20px 0' }}>
-          <button onClick={() => setTab('dashboard')} style={{ marginRight: 10, fontWeight: tab === 'dashboard' ? 'bold' : undefined }}>Dashboard</button>
-          <button onClick={() => setTab('settings')} style={{ fontWeight: tab === 'settings' ? 'bold' : undefined }}>Team Settings</button>
+        <h1 style={{ 
+          textAlign: 'center', 
+          marginBottom: '30px',
+          color: '#333',
+          fontSize: '2.5rem',
+          fontWeight: '600'
+        }}>Monday.com Workload Tracker</h1>
+        
+        <div style={{ 
+          textAlign: 'center', 
+          margin: '30px 0',
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '10px'
+        }}>
+          <button 
+            onClick={() => setTab('dashboard')} 
+            style={{ 
+              padding: '12px 24px',
+              backgroundColor: tab === 'dashboard' ? '#0073ea' : '#f8f9fa',
+              color: tab === 'dashboard' ? 'white' : '#333',
+              border: '1px solid #dee2e6',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: tab === 'dashboard' ? '600' : '500',
+              fontSize: '16px',
+              transition: 'all 0.2s ease',
+              boxShadow: tab === 'dashboard' ? '0 4px 8px rgba(0, 115, 234, 0.3)' : '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+            onMouseEnter={(e) => {
+              if (tab !== 'dashboard') {
+                (e.target as HTMLElement).style.backgroundColor = '#e9ecef';
+                (e.target as HTMLElement).style.transform = 'translateY(-1px)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (tab !== 'dashboard') {
+                (e.target as HTMLElement).style.backgroundColor = '#f8f9fa';
+                (e.target as HTMLElement).style.transform = 'translateY(0)';
+              }
+            }}
+          >
+            Dashboard
+          </button>
+          <button 
+            onClick={() => setTab('settings')} 
+            style={{ 
+              padding: '12px 24px',
+              backgroundColor: tab === 'settings' ? '#0073ea' : '#f8f9fa',
+              color: tab === 'settings' ? 'white' : '#333',
+              border: '1px solid #dee2e6',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: tab === 'settings' ? '600' : '500',
+              fontSize: '16px',
+              transition: 'all 0.2s ease',
+              boxShadow: tab === 'settings' ? '0 4px 8px rgba(0, 115, 234, 0.3)' : '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+            onMouseEnter={(e) => {
+              if (tab !== 'settings') {
+                (e.target as HTMLElement).style.backgroundColor = '#e9ecef';
+                (e.target as HTMLElement).style.transform = 'translateY(-1px)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (tab !== 'settings') {
+                (e.target as HTMLElement).style.backgroundColor = '#f8f9fa';
+                (e.target as HTMLElement).style.transform = 'translateY(0)';
+              }
+            }}
+          >
+            Team Settings
+          </button>
         </div>
+        
         {tab === 'dashboard' && (
           <>
-            <div style={{ margin: '20px 0', textAlign: 'center' }}>
-              <label htmlFor="group-select"><strong>Select Sprint/Group:</strong> </label>
+            <div style={{ 
+              margin: '30px 0', 
+              textAlign: 'center',
+              padding: '20px',
+              backgroundColor: '#ffffff',
+              borderRadius: '12px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+            }}>
+              <label htmlFor="group-select" style={{ fontWeight: '600', marginRight: '10px', color: '#333' }}>
+                Select Sprint/Group:
+              </label>
               <select
                 id="group-select"
                 className="custom-dropdown"
                 value={selectedGroup}
                 onChange={e => setSelectedGroup(e.target.value)}
+                style={{ marginLeft: '10px' }}
               >
                 {groups.map(group => (
                   <option key={group.id} value={group.id}>{group.title}</option>
                 ))}
               </select>
             </div>
-            <h2 style={{ textAlign: 'center' }}>Team Member Capacity (Sprint Override)</h2>
-            <div style={{ marginBottom: 16, textAlign: 'center' }}>
-              <label htmlFor="override-member"><strong>Select Team Member:</strong> </label>
-              <select
-                id="override-member"
-                className="custom-dropdown"
-                value={overrideMember}
-                onChange={e => setOverrideMember(e.target.value)}
-              >
-                <option value="">-- Select --</option>
-                {team.map(member => (
-                  <option key={member.name} value={member.name}>{member.name}</option>
-                ))}
-              </select>
-            </div>
-            {overrideMember && (
-              <div style={{ marginBottom: 24, textAlign: 'center' }}>
-                <span style={{ fontWeight: 'bold' }}>{overrideMember}:</span> {' '}
-                <input
-                  type="number"
-                  value={pendingOverride}
-                  min={1}
-                  style={{ width: 60, marginRight: 8 }}
-                  onChange={e => handleOverrideInput(Number(e.target.value))}
-                /> hrs
-                <button style={{ marginLeft: 8 }} onClick={handleSaveOverride}>Save</button>
-                {overrides[overrideMember] !== undefined && (
-                  <button style={{ marginLeft: 8 }} onClick={() => handleResetOverride(overrideMember)}>Reset to Default</button>
-                )}
-                {overrides[overrideMember] !== undefined && <span style={{ color: '#888', marginLeft: 8 }}>(Overridden)</span>}
-                {overrides[overrideMember] === undefined && <span style={{ color: '#888', marginLeft: 8 }}>(Default)</span>}
+            
+            <div style={{ 
+              margin: '30px 0',
+              padding: '20px',
+              backgroundColor: '#ffffff',
+              borderRadius: '12px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+            }}>
+              <h2 style={{ textAlign: 'center', marginBottom: '20px', color: '#333', fontSize: '1.5rem' }}>
+                Team Member Capacity (Sprint Override)
+              </h2>
+              <div style={{ marginBottom: '20px', textAlign: 'center' }}>
+                <label htmlFor="override-member" style={{ fontWeight: '600', marginRight: '10px', color: '#333' }}>
+                  Select Team Member:
+                </label>
+                <select
+                  id="override-member"
+                  className="custom-dropdown"
+                  value={overrideMember}
+                  onChange={e => setOverrideMember(e.target.value)}
+                  style={{ marginLeft: '10px' }}
+                >
+                  <option value="">-- Select --</option>
+                  {team.map(member => (
+                    <option key={member.name} value={member.name}>{member.name}</option>
+                  ))}
+                </select>
               </div>
-            )}
-            <WorkloadDashboard
-              team={team.map(m => ({ ...m, capacity: overrides[m.name] !== undefined ? overrides[m.name] : m.capacity }))}
-              workload={workload}
-            />
+                {overrideMember && (
+                  <div style={{ 
+                    marginBottom: '20px', 
+                    textAlign: 'center',
+                    padding: '20px',
+                    backgroundColor: '#f8f9fa',
+                    borderRadius: '12px',
+                    border: '1px solid #dee2e6',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                  }}>
+                    <span style={{ fontWeight: '600', color: '#333', fontSize: '16px' }}>{overrideMember}:</span> {' '}
+                    <input
+                      type="number"
+                      value={pendingOverride}
+                      min={1}
+                      className="capacity-input"
+                      style={{ 
+                        width: '80px', 
+                        marginRight: '10px'
+                      }}
+                      onChange={e => handleOverrideInput(Number(e.target.value))}
+                    /> hrs
+                    <button 
+                      style={{ 
+                        marginLeft: '10px',
+                        padding: '10px 20px',
+                        backgroundColor: '#28a745',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        transition: 'all 0.2s ease',
+                        boxShadow: '0 2px 4px rgba(40, 167, 69, 0.2)'
+                      }}
+                      onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = '#218838'}
+                      onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = '#28a745'}
+                      onClick={handleSaveOverride}
+                    >
+                      Save
+                    </button>
+                    {overrides[overrideMember] !== undefined && (
+                      <button 
+                        style={{ 
+                          marginLeft: '10px',
+                          padding: '10px 20px',
+                          backgroundColor: '#6c757d',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          transition: 'all 0.2s ease',
+                          boxShadow: '0 2px 4px rgba(108, 117, 125, 0.2)'
+                        }}
+                        onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = '#5a6268'}
+                        onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = '#6c757d'}
+                        onClick={() => handleResetOverride(overrideMember)}
+                      >
+                        Reset to Default
+                      </button>
+                    )}
+                    {overrides[overrideMember] !== undefined && (
+                      <span className="status-overridden" style={{ marginLeft: '10px' }}>(Overridden)</span>
+                    )}
+                    {overrides[overrideMember] === undefined && (
+                      <span className="status-default" style={{ marginLeft: '10px' }}>(Default)</span>
+                    )}
+                  </div>
+                )}
+            </div>
+            
+            <div style={{
+              padding: '20px',
+              backgroundColor: '#ffffff',
+              borderRadius: '12px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+            }}>
+              <h2 style={{ 
+                textAlign: 'center', 
+                marginBottom: '20px', 
+                color: '#333', 
+                fontSize: '1.5rem',
+                fontWeight: '600'
+              }}>
+                Workload Dashboard
+              </h2>
+              <WorkloadDashboard
+                team={team.map(m => ({ ...m, capacity: overrides[m.name] !== undefined ? overrides[m.name] : m.capacity }))}
+                workload={workload}
+              />
+            </div>
           </>
         )}
+        
         {tab === 'settings' && (
           <>
-            <CapacityManager team={team} setTeam={setTeam} />
-            <div style={{ marginTop: 40, textAlign: 'center' }}>
-              <button onClick={() => setShowInspector(v => !v)} style={{ marginBottom: 10 }}>
+            <div style={{
+              padding: '20px',
+              backgroundColor: '#ffffff',
+              borderRadius: '12px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+            }}>
+              <CapacityManager team={team} setTeam={setTeam} />
+            </div>
+            <div style={{ 
+              marginTop: '30px',
+              textAlign: 'center',
+              padding: '20px',
+              backgroundColor: '#ffffff',
+              borderRadius: '12px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+            }}>
+              <button 
+                onClick={() => setShowInspector(v => !v)} 
+                style={{ 
+                  marginBottom: '20px',
+                  padding: '12px 24px',
+                  backgroundColor: '#17a2b8',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  fontWeight: '500',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 4px rgba(23, 162, 184, 0.3)'
+                }}
+                onMouseEnter={(e) => {
+                  (e.target as HTMLElement).style.backgroundColor = '#138496';
+                  (e.target as HTMLElement).style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={(e) => {
+                  (e.target as HTMLElement).style.backgroundColor = '#17a2b8';
+                  (e.target as HTMLElement).style.transform = 'translateY(0)';
+                }}
+              >
                 {showInspector ? 'Hide' : 'Show'} Board Structure Inspector
               </button>
               {showInspector && <BoardInspector />}
