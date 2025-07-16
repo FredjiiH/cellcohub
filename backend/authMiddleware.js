@@ -1,4 +1,6 @@
 const { ConfidentialClientApplication } = require('@azure/msal-node');
+const jwt = require('jsonwebtoken');
+const jwksClient = require('jwks-rsa');
 
 // MSAL configuration for backend
 const msalConfig = {
@@ -11,6 +13,12 @@ const msalConfig = {
 
 const msalInstance = new ConfidentialClientApplication(msalConfig);
 
+// JWKS client for token validation
+const jwksClientInstance = jwksClient({
+  jwksUri: `https://login.microsoftonline.com/${process.env.AZURE_TENANT_ID || 'common'}/discovery/v2.0/keys`,
+  timeout: 30000
+});
+
 // Middleware to validate Azure AD tokens
 const validateToken = async (req, res, next) => {
   try {
@@ -22,18 +30,11 @@ const validateToken = async (req, res, next) => {
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
-    // Validate the token with Azure AD
-    const result = await msalInstance.acquireTokenByClientCredential({
-      scopes: ['https://graph.microsoft.com/.default']
-    });
-
-    // For now, we'll do basic validation
-    // In production, you should validate the JWT token properly
+    // For now, we'll do basic validation since we're using the user info from headers
+    // In production, you should validate the JWT token properly with Azure AD
     if (token && token.length > 0) {
-      // Extract user info from token (you might want to decode the JWT)
-      // For now, we'll assume the token is valid if it exists
+      // Extract user info from headers (sent by frontend)
       req.user = {
-        // You can extract user info from the token here
         email: req.headers['x-user-email'] || 'unknown@cellcolabs.com',
         name: req.headers['x-user-name'] || 'Unknown User'
       };

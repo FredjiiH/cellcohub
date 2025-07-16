@@ -13,6 +13,13 @@ const OVERRIDES_FILE = path.join(__dirname, 'capacity_overrides.json');
 app.use(cors());
 app.use(bodyParser.json());
 
+// Add logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  console.log('Headers:', req.headers);
+  next();
+});
+
 // Helper to read/write team data
 function readTeam() {
   if (!fs.existsSync(DATA_FILE)) return [];
