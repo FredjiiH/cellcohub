@@ -11,24 +11,40 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
   const handleLogin = async () => {
     try {
+      console.log('=== LOGIN DEBUG ===');
+      console.log('Starting login process...');
+      console.log('MSAL instance:', instance);
+      console.log('Login request config:', loginRequest);
+      
       const response = await instance.loginPopup(loginRequest);
+      console.log('Login response received:', response);
+      console.log('Account info:', response.account);
       
       // Check if user's email domain is allowed
       const userEmail = response.account?.username || '';
+      console.log('User email:', userEmail);
+      console.log('Email domain check:', userEmail.toLowerCase().endsWith('@cellcolabs.com'));
+      
       if (!userEmail.toLowerCase().endsWith('@cellcolabs.com')) {
+        console.log('Access denied - wrong domain');
         alert('Access denied. Only @cellcolabs.com accounts are allowed.');
         await instance.logout();
         return;
       }
 
+      console.log('Login successful, calling onLoginSuccess');
       // Login successful
       onLoginSuccess({
         name: response.account?.name || '',
         email: userEmail,
         account: response.account
       });
-    } catch (error) {
+      console.log('=== LOGIN SUCCESS ===');
+    } catch (error: any) {
+      console.error('=== LOGIN ERROR ===');
       console.error('Login failed:', error);
+      console.error('Error details:', error.message);
+      console.error('Error stack:', error.stack);
       alert('Login failed. Please try again.');
     }
   };

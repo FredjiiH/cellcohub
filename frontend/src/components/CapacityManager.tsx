@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
+import { useMsal } from '@azure/msal-react';
 
 interface TeamMember {
   name: string;
@@ -11,7 +12,9 @@ const API_URL = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BAC
 const CapacityManager: React.FC<{
   team: TeamMember[];
   setTeam: React.Dispatch<React.SetStateAction<TeamMember[]>>;
-}> = ({ team, setTeam }) => {
+  user: any;
+}> = ({ team, setTeam, user }) => {
+  const { instance } = useMsal();
   const [name, setName] = useState('');
   const [capacity, setCapacity] = useState<number>(40);
   const [editing, setEditing] = useState<string | null>(null);
@@ -19,10 +22,26 @@ const CapacityManager: React.FC<{
 
   const addMember = async () => {
     if (name && capacity > 0 && !team.some(m => m.name === name)) {
-      const res = await axios.post(API_URL, { name, capacity });
-      setTeam(res.data);
-      setName('');
-      setCapacity(40);
+      try {
+        const response = await instance.acquireTokenSilent({
+          scopes: ['User.Read'],
+          account: user.account
+        });
+        
+        const res = await axios.post(API_URL, { name, capacity }, {
+          headers: {
+            'Authorization': `Bearer ${response.accessToken}`,
+            'x-user-email': user.email,
+            'x-user-name': user.name
+          }
+        });
+        setTeam(res.data);
+        setName('');
+        setCapacity(40);
+      } catch (error) {
+        console.error('Error adding member:', error);
+        alert('Failed to add member. Please try again.');
+      }
     }
   };
 
@@ -32,9 +51,25 @@ const CapacityManager: React.FC<{
   };
 
   const saveEdit = async (member: TeamMember) => {
-    const res = await axios.post(API_URL, { name: member.name, capacity: editValue });
-    setTeam(res.data);
-    setEditing(null);
+    try {
+      const response = await instance.acquireTokenSilent({
+        scopes: ['User.Read'],
+        account: user.account
+      });
+      
+      const res = await axios.post(API_URL, { name: member.name, capacity: editValue }, {
+        headers: {
+          'Authorization': `Bearer ${response.accessToken}`,
+          'x-user-email': user.email,
+          'x-user-name': user.name
+        }
+      });
+      setTeam(res.data);
+      setEditing(null);
+    } catch (error) {
+      console.error('Error saving edit:', error);
+      alert('Failed to save changes. Please try again.');
+    }
   };
 
   const cancelEdit = () => {
@@ -42,8 +77,24 @@ const CapacityManager: React.FC<{
   };
 
   const deleteMember = async (memberName: string) => {
-    const res = await axios.delete(`${API_URL}/${encodeURIComponent(memberName)}`);
-    setTeam(res.data);
+    try {
+      const response = await instance.acquireTokenSilent({
+        scopes: ['User.Read'],
+        account: user.account
+      });
+      
+      const res = await axios.delete(`${API_URL}/${encodeURIComponent(memberName)}`, {
+        headers: {
+          'Authorization': `Bearer ${response.accessToken}`,
+          'x-user-email': user.email,
+          'x-user-name': user.name
+        }
+      });
+      setTeam(res.data);
+    } catch (error) {
+      console.error('Error deleting member:', error);
+      alert('Failed to delete member. Please try again.');
+    }
   };
 
   return (

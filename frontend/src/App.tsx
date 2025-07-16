@@ -600,7 +600,7 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
               borderRadius: '12px',
               boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
             }}>
-              <CapacityManager team={team} setTeam={setTeam} />
+              <CapacityManager team={team} setTeam={setTeam} user={user} />
             </div>
             <div style={{ 
               marginTop: '30px',
@@ -649,7 +649,10 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
 
   const handleLoginSuccess = (userData: User) => {
+    console.log('=== LOGIN SUCCESS CALLBACK ===');
+    console.log('User data received:', userData);
     setUser(userData);
+    console.log('User state set:', userData);
   };
 
   return (
