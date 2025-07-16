@@ -6,10 +6,15 @@ const BOARD_ID = process.env.REACT_APP_MONDAY_BOARD_ID || '2038576678';
 const API_URL = 'https://api.monday.com/v2';
 
 // Debug environment variables
+console.log('=== MONDAY.COM API DEBUG ===');
 console.log('Environment variables:', {
   REACT_APP_MONDAY_API_TOKEN: process.env.REACT_APP_MONDAY_API_TOKEN ? 'SET' : 'NOT SET',
   REACT_APP_MONDAY_BOARD_ID: process.env.REACT_APP_MONDAY_BOARD_ID || 'NOT SET'
 });
+console.log('API_TOKEN available:', !!API_TOKEN);
+console.log('BOARD_ID:', BOARD_ID);
+console.log('API_URL:', API_URL);
+console.log('================================');
 
 // Validate that API token is available
 if (!API_TOKEN) {

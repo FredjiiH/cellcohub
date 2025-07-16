@@ -2,6 +2,22 @@ const { ConfidentialClientApplication } = require('@azure/msal-node');
 const jwt = require('jsonwebtoken');
 const jwksClient = require('jwks-rsa');
 
+// Check for required environment variables
+if (!process.env.AZURE_CLIENT_ID || !process.env.AZURE_CLIENT_SECRET) {
+  console.error('❌ Missing Azure AD environment variables!');
+  console.error('Please set the following environment variables:');
+  console.error('- AZURE_CLIENT_ID');
+  console.error('- AZURE_CLIENT_SECRET');
+  console.error('- AZURE_TENANT_ID (optional, defaults to "common")');
+  console.error('');
+  console.error('For local development, create a .env file in the backend folder with:');
+  console.error('AZURE_CLIENT_ID=your_client_id');
+  console.error('AZURE_CLIENT_SECRET=your_client_secret');
+  console.error('AZURE_TENANT_ID=your_tenant_id');
+  console.error('');
+  process.exit(1);
+}
+
 // MSAL configuration for backend
 const msalConfig = {
   auth: {

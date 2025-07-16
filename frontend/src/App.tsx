@@ -14,9 +14,15 @@ import './App.css';
 const msalInstance = new PublicClientApplication(msalConfig);
 
 // Check Environment Access
-console.log('REACT_APP_MONDAY_API_TOKEN:', process.env.REACT_APP_MONDAY_API_TOKEN);
+console.log('=== DEPLOYMENT DEBUG INFO ===');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('REACT_APP_MONDAY_API_TOKEN:', process.env.REACT_APP_MONDAY_API_TOKEN ? 'SET' : 'NOT SET');
 console.log('REACT_APP_MONDAY_BOARD_ID:', process.env.REACT_APP_MONDAY_BOARD_ID);
 console.log('REACT_APP_BACKEND_URL:', process.env.REACT_APP_BACKEND_URL);
+console.log('REACT_APP_AZURE_CLIENT_ID:', process.env.REACT_APP_AZURE_CLIENT_ID ? 'SET' : 'NOT SET');
+console.log('REACT_APP_AZURE_TENANT_ID:', process.env.REACT_APP_AZURE_TENANT_ID);
+console.log('Current URL:', window.location.href);
+console.log('================================');
 
 // Trigger deployment - small change to force rebuild
 
@@ -110,18 +116,28 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
   // Fetch groups
   useEffect(() => {
     if (!user) return;
+    console.log('Fetching groups for user:', user.email);
+    console.log('Monday.com API Token available:', !!process.env.REACT_APP_MONDAY_API_TOKEN);
+    console.log('Monday.com Board ID:', process.env.REACT_APP_MONDAY_BOARD_ID);
+    
     fetchGroups().then(gs => {
+      console.log('Groups fetched:', gs);
       setGroups(gs);
       if (gs.length > 0) setSelectedGroup(gs[0].id);
+    }).catch(err => {
+      console.error('Error fetching groups:', err);
     });
   }, [user]);
 
   // Fetch tasks
   useEffect(() => {
     if (!user) return;
+    console.log('Fetching tasks for user:', user.email);
     fetchTasks().then(ts => {
+      console.log('Tasks fetched:', ts);
       setTasks(ts);
-      console.log('All tasks with groupId:', ts);
+    }).catch(err => {
+      console.error('Error fetching tasks:', err);
     });
   }, [user]);
 
@@ -179,6 +195,8 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
       }).catch(err => {
         console.error('Error fetching team from backend:', err);
         console.error('Error details:', err.response?.data || err.message);
+        console.error('Error status:', err.response?.status);
+        console.error('Error headers:', err.response?.headers);
         setTeam([
           { name: 'Fredrik Helander', capacity: 40 },
           { name: 'Fanny Wilgodt', capacity: 40 }
