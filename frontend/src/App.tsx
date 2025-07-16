@@ -116,28 +116,36 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
   // Fetch groups
   useEffect(() => {
     if (!user) return;
-    console.log('Fetching groups for user:', user.email);
+    console.log('=== FETCHING GROUPS ===');
+    console.log('User email:', user.email);
     console.log('Monday.com API Token available:', !!process.env.REACT_APP_MONDAY_API_TOKEN);
     console.log('Monday.com Board ID:', process.env.REACT_APP_MONDAY_BOARD_ID);
     
     fetchGroups().then(gs => {
-      console.log('Groups fetched:', gs);
+      console.log('Groups fetched successfully:', gs);
       setGroups(gs);
       if (gs.length > 0) setSelectedGroup(gs[0].id);
     }).catch(err => {
       console.error('Error fetching groups:', err);
+      console.error('Error response:', err.response?.data);
+      console.error('Error status:', err.response?.status);
     });
   }, [user]);
 
   // Fetch tasks
   useEffect(() => {
     if (!user) return;
-    console.log('Fetching tasks for user:', user.email);
+    console.log('=== FETCHING TASKS ===');
+    console.log('User email:', user.email);
+    
     fetchTasks().then(ts => {
-      console.log('Tasks fetched:', ts);
+      console.log('Tasks fetched successfully:', ts);
+      console.log('Number of tasks:', ts.length);
       setTasks(ts);
     }).catch(err => {
       console.error('Error fetching tasks:', err);
+      console.error('Error response:', err.response?.data);
+      console.error('Error status:', err.response?.status);
     });
   }, [user]);
 
@@ -145,13 +153,18 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
   useEffect(() => {
     if (!selectedGroup || !user) return;
     const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
+    console.log('=== FETCHING OVERRIDES ===');
     console.log('Backend URL for overrides:', backendUrl);
+    console.log('Selected group:', selectedGroup);
+    console.log('User:', user.email);
     
     // Get access token for backend
     instance.acquireTokenSilent({
       scopes: ['User.Read'],
       account: user.account
     }).then(response => {
+      console.log('Access token acquired successfully');
+      console.log('Making request to:', `${backendUrl}/api/overrides/${selectedGroup}`);
       axios.get(`${backendUrl}/api/overrides/${selectedGroup}`, {
         headers: {
           'Authorization': `Bearer ${response.accessToken}`,
@@ -159,13 +172,18 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
           'x-user-name': user.name
         }
       }).then(res => {
+        console.log('Overrides fetched successfully:', res.data);
         setOverrides(res.data);
       }).catch(err => {
         console.error('Error fetching overrides:', err);
+        console.error('Error response:', err.response?.data);
+        console.error('Error status:', err.response?.status);
+        console.error('Error headers:', err.response?.headers);
         setOverrides({});
       });
     }).catch(err => {
       console.error('Error getting access token:', err);
+      console.error('Error details:', err.message);
       setOverrides({});
     });
   }, [selectedGroup, user, instance]);
@@ -174,6 +192,7 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
   useEffect(() => {
     if (!user) return;
     const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
+    console.log('=== FETCHING TEAM ===');
     console.log('Backend URL for team:', backendUrl);
     console.log('User data:', user);
     
@@ -183,6 +202,11 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
       account: user.account
     }).then(response => {
       console.log('Got access token, making API call to:', `${backendUrl}/api/team`);
+      console.log('Request headers:', {
+        'Authorization': 'Bearer [TOKEN]',
+        'x-user-email': user.email,
+        'x-user-name': user.name
+      });
       axios.get(`${backendUrl}/api/team`, {
         headers: {
           'Authorization': `Bearer ${response.accessToken}`,
@@ -197,6 +221,7 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
         console.error('Error details:', err.response?.data || err.message);
         console.error('Error status:', err.response?.status);
         console.error('Error headers:', err.response?.headers);
+        console.error('Full error object:', err);
         setTeam([
           { name: 'Fredrik Helander', capacity: 40 },
           { name: 'Fanny Wilgodt', capacity: 40 }
@@ -204,6 +229,7 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
       });
     }).catch(err => {
       console.error('Error getting access token:', err);
+      console.error('Error details:', err.message);
       setTeam([
         { name: 'Fredrik Helander', capacity: 40 },
         { name: 'Fanny Wilgodt', capacity: 40 }

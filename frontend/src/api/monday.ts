@@ -81,16 +81,8 @@ export async function fetchBoardItems(): Promise<any[]> {
   const query = `
     query {
       boards(ids: ${BOARD_ID}) {
-        items {
-          id
-          name
-          column_values {
-            id
-            text
-            value
-            type
-          }
-          subitems {
+        items_page {
+          items {
             id
             name
             column_values {
@@ -99,6 +91,16 @@ export async function fetchBoardItems(): Promise<any[]> {
               value
               type
             }
+            subitems {
+              id
+              name
+              column_values {
+                id
+                text
+                value
+                type
+              }
+            }
           }
         }
       }
@@ -106,10 +108,14 @@ export async function fetchBoardItems(): Promise<any[]> {
   `;
 
   try {
+    console.log('Making API call to fetch board items with query:', query);
     const response = await axios.post(API_URL, { query }, { headers });
-    return response.data.data.boards[0].items;
-  } catch (error) {
+    console.log('Board items API response received:', response.status);
+    return response.data.data.boards[0].items_page.items;
+  } catch (error: any) {
     console.error('Error fetching board items:', error);
+    console.error('Error response:', error.response?.data);
+    console.error('Error status:', error.response?.status);
     return [];
   }
 }
