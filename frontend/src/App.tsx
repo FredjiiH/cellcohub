@@ -78,9 +78,38 @@ function AppContent() {
   };
 
   // Handle logout
-  const handleLogout = () => {
-    instance.logout();
-    setUser(null);
+  const handleLogout = async () => {
+    try {
+      // Clear all local state
+      setUser(null);
+      setTeam([]);
+      setTasks([]);
+      setWorkload({});
+      setGroups([]);
+      setSelectedGroup('');
+      setOverrides({});
+      setOverrideMember('');
+      setPendingOverride(undefined);
+      setTab('dashboard');
+      setShowInspector(false);
+      
+      // Logout from MSAL
+      await instance.logout({
+        account: user?.account,
+        postLogoutRedirectUri: window.location.origin
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Even if MSAL logout fails, clear local state
+      setUser(null);
+    }
+  };
+
+  // Handle logout with confirmation
+  const handleLogoutWithConfirmation = () => {
+    if (window.confirm('Are you sure you want to sign out?')) {
+      handleLogout();
+    }
   };
 
   // Fetch groups
@@ -264,7 +293,7 @@ function AppContent() {
             <span style={{ color: '#666', marginLeft: '10px' }}>({user.email})</span>
           </div>
           <button 
-            onClick={handleLogout}
+            onClick={handleLogoutWithConfirmation}
             style={{
               backgroundColor: '#dc3545',
               color: 'white',
