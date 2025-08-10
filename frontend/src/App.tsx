@@ -117,6 +117,16 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
     }
   };
 
+  // Handle refresh data
+  const handleRefreshData = () => {
+    console.log('=== MANUAL DATA REFRESH ===');
+    setIsLoading(true);
+    setDataLoaded(false);
+    // Trigger data fetch again
+    const event = new Event('user-login');
+    window.dispatchEvent(event);
+  };
+
   // Fetch all data when user logs in
   useEffect(() => {
     if (!user) return;
@@ -332,25 +342,56 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
             <span style={{ fontWeight: '600', fontSize: '16px', color: '#333' }}>Welcome, {user.name}</span>
             <span style={{ color: '#666', marginLeft: '10px', fontSize: '14px' }}>({user.email})</span>
           </div>
-          <button 
-            onClick={handleLogoutWithConfirmation}
-            style={{
-              backgroundColor: '#6c757d',
-              color: 'white',
-              border: 'none',
-              padding: '10px 20px',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              transition: 'background-color 0.2s ease',
-              boxShadow: '0 2px 4px rgba(108, 117, 125, 0.2)'
-            }}
-            onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = '#5a6268'}
-            onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = '#6c757d'}
-          >
-            Sign Out
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button 
+              onClick={handleRefreshData}
+              disabled={isLoading}
+              style={{
+                backgroundColor: '#28a745',
+                color: 'white',
+                border: 'none',
+                padding: '10px 20px',
+                borderRadius: '6px',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                transition: 'background-color 0.2s ease',
+                boxShadow: '0 2px 4px rgba(40, 167, 69, 0.2)',
+                opacity: isLoading ? 0.6 : 1
+              }}
+              onMouseEnter={(e) => {
+                if (!isLoading) {
+                  (e.target as HTMLElement).style.backgroundColor = '#218838';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isLoading) {
+                  (e.target as HTMLElement).style.backgroundColor = '#28a745';
+                }
+              }}
+            >
+              {isLoading ? 'Refreshing...' : '🔄 Refresh Data'}
+            </button>
+            <button 
+              onClick={handleLogoutWithConfirmation}
+              style={{
+                backgroundColor: '#6c757d',
+                color: 'white',
+                border: 'none',
+                padding: '10px 20px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                transition: 'background-color 0.2s ease',
+                boxShadow: '0 2px 4px rgba(108, 117, 125, 0.2)'
+              }}
+              onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = '#5a6268'}
+              onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = '#6c757d'}
+            >
+              Sign Out
+            </button>
+          </div>
         </div>
       )}
       
@@ -406,13 +447,7 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
               No data loaded. This might be a temporary issue.
             </p>
             <button 
-              onClick={() => {
-                setIsLoading(true);
-                setDataLoaded(false);
-                // Trigger data fetch again
-                const event = new Event('user-login');
-                window.dispatchEvent(event);
-              }}
+              onClick={handleRefreshData}
               style={{
                 padding: '12px 24px',
                 backgroundColor: '#0073ea',
@@ -706,6 +741,38 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
+
+  // Restore user state from MSAL account on app load
+  useEffect(() => {
+    const restoreUserFromAccount = async () => {
+      try {
+        // Check if there's an active account
+        const accounts = msalInstance.getAllAccounts();
+        if (accounts.length > 0) {
+          const activeAccount = accounts[0];
+          console.log('=== RESTORING USER FROM ACCOUNT ===');
+          console.log('Active account found:', activeAccount);
+          
+          // Get user info from the account
+          const userData: User = {
+            name: activeAccount.name || 'Unknown User',
+            email: activeAccount.username || '',
+            account: activeAccount
+          };
+          
+          console.log('Restored user data:', userData);
+          setUser(userData);
+        } else {
+          console.log('No active accounts found, user needs to login');
+        }
+      } catch (error) {
+        console.error('Error restoring user from account:', error);
+      }
+    };
+
+    // Restore user state when app loads
+    restoreUserFromAccount();
+  }, []);
 
   const handleLoginSuccess = (userData: User) => {
     console.log('=== LOGIN SUCCESS CALLBACK ===');
