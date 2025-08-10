@@ -118,13 +118,73 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
   };
 
   // Handle refresh data
-  const handleRefreshData = () => {
+  const handleRefreshData = async () => {
+    if (!user) return;
+    
     console.log('=== MANUAL DATA REFRESH ===');
     setIsLoading(true);
     setDataLoaded(false);
-    // Trigger data fetch again
-    const event = new Event('user-login');
-    window.dispatchEvent(event);
+    
+    try {
+      console.log('Fetching all data for user:', user.email);
+      
+      // Fetch all data in parallel
+      const [groupsData, tasksData, teamData] = await Promise.all([
+        fetchGroups().catch(err => {
+          console.error('Error fetching groups:', err);
+          return [];
+        }),
+        fetchTasks().catch(err => {
+          console.error('Error fetching tasks:', err);
+          return [];
+        }),
+        (async () => {
+          try {
+            const response = await instance.acquireTokenSilent({
+              scopes: ['User.Read'],
+              account: user.account
+            });
+            
+            const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
+            const res = await axios.get(`${backendUrl}/api/team`, {
+              headers: {
+                'Authorization': `Bearer ${response.accessToken}`,
+                'x-user-email': user.email,
+                'x-user-name': user.name
+              }
+            });
+            return res.data;
+          } catch (err) {
+            console.error('Error fetching team:', err);
+            return [
+              { name: 'Fredrik Helander', capacity: 40 },
+              { name: 'Fanny Wilgodt', capacity: 40 }
+            ];
+          }
+        })()
+      ]);
+      
+      console.log('Manual refresh - All data fetched successfully');
+      console.log('Groups:', groupsData);
+      console.log('Tasks:', tasksData);
+      console.log('Team:', teamData);
+      
+      setGroups(groupsData);
+      setTasks(tasksData);
+      setTeam(teamData);
+      
+      // Set selected group if groups are available
+      if (groupsData.length > 0) {
+        setSelectedGroup(groupsData[0].id);
+      }
+      
+      setDataLoaded(true);
+      setIsLoading(false);
+      
+    } catch (error) {
+      console.error('Error during manual refresh:', error);
+      setIsLoading(false);
+    }
   };
 
   // Fetch all data when user logs in
