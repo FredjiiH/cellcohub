@@ -120,10 +120,10 @@ export async function fetchBoardItems(): Promise<any[]> {
   }
 }
 
-// Parse column values to extract effort, assignee, status, and due date
-function parseColumnValues(columnValues: any[]): { effort: number; assignee: string; status: string; dueDate: string } {
+// Parse column values to extract effort, assignees, status, and due date
+function parseColumnValues(columnValues: any[]): { effort: number; assignees: string[]; status: string; dueDate: string } {
   let effort = 0;
-  let assignee = '';
+  let assignees: string[] = [];
   let status = '';
   let dueDate = '';
 
@@ -136,16 +136,16 @@ function parseColumnValues(columnValues: any[]): { effort: number; assignee: str
       }
     }
     if (col.id === 'person' && col.value) {
-      // Assigned To (people) column
+      // Assigned To (people) column - handle multiple assignees
       try {
         const parsed = JSON.parse(col.value);
         if (parsed && parsed.personsAndTeams && parsed.personsAndTeams.length > 0) {
-          // Use the first person assigned (or you can join names for multiple assignees)
-          assignee = parsed.personsAndTeams[0].name;
+          // Extract all assignees, not just the first one
+          assignees = parsed.personsAndTeams.map((person: any) => person.name);
         }
       } catch (e) {
-        // fallback
-        assignee = col.text || '';
+        // fallback - try to parse as single assignee
+        assignees = col.text ? [col.text] : [];
       }
     }
     if (col.id === 'status' && col.text) {
@@ -156,7 +156,7 @@ function parseColumnValues(columnValues: any[]): { effort: number; assignee: str
     }
   });
 
-  return { effort, assignee, status, dueDate };
+  return { effort, assignees, status, dueDate };
 }
 
 // Convert Monday.com items to our Task interface
@@ -211,23 +211,30 @@ export async function fetchTasks(): Promise<Task[]> {
       // Find subitems with valid effort and assignee
       const validSubitems = (Array.isArray(item.subitems) ? item.subitems : []).filter((subitem: any) => {
         let effort = 0;
-        let assignee = '';
+        let assignees: string[] = [];
         subitem.column_values.forEach((col: any) => {
           if (col.id === 'numeric_mksezpbh' && col.text) {
             const val = parseFloat(col.text);
             if (!isNaN(val)) effort = val;
           }
-          if (col.id === 'person' && col.text) {
-            assignee = col.text;
+          if (col.id === 'person') {
+            console.log('Processing person column:', col);
+            // Use the text field which contains the actual names
+            if (col.text && col.text.trim()) {
+              // Split by comma and clean up names
+              assignees = col.text.split(',').map((name: string) => name.trim()).filter((name: string) => name.length > 0);
+              console.log('Extracted assignees from text:', assignees);
+            }
           }
         });
-        return effort > 0 && assignee;
+        console.log(`Subitem ${subitem.name}: effort=${effort}, assignees=${assignees.join(', ')}`);
+        return effort > 0 && assignees.length > 0;
       });
       if (validSubitems.length > 0) {
         // Only count valid subitems, ignore main item effort
         validSubitems.forEach((subitem: any) => {
           let effort = 0;
-          let assignee = '';
+          let assignees: string[] = [];
           let status = '';
           let dueDate = '';
           subitem.column_values.forEach((col: any) => {
@@ -235,8 +242,12 @@ export async function fetchTasks(): Promise<Task[]> {
               const val = parseFloat(col.text);
               if (!isNaN(val)) effort = val;
             }
-            if (col.id === 'person' && col.text) {
-              assignee = col.text;
+            if (col.id === 'person') {
+              // Use the text field which contains the actual names
+              if (col.text && col.text.trim()) {
+                // Split by comma and clean up names
+                assignees = col.text.split(',').map((name: string) => name.trim()).filter((name: string) => name.length > 0);
+              }
             }
             if (col.id === 'status' && col.text) {
               status = col.text;
@@ -250,24 +261,27 @@ export async function fetchTasks(): Promise<Task[]> {
           if (!validGroupIds.includes(groupId)) {
             groupId = item.group?.id || '';
           }
-          if (effort > 0 && assignee) {
-            tasks.push({
-              id: subitem.id,
-              name: subitem.name,
-              effort,
-              assignee,
-              status,
-              dueDate,
-              isSubitem: true,
-              parentId: item.id,
-              groupId,
+          if (effort > 0 && assignees.length > 0) {
+            // Create a separate task entry for each assignee
+            assignees.forEach(assignee => {
+              tasks.push({
+                id: `${subitem.id}-${assignee}`, // Unique ID for each assignee
+                name: subitem.name,
+                effort,
+                assignee,
+                status,
+                dueDate,
+                isSubitem: true,
+                parentId: item.id,
+                groupId,
+              });
             });
           }
         });
       } else {
         // No valid subitems, use main item effort
         let effort = 0;
-        let assignee = '';
+        let assignees: string[] = [];
         let status = '';
         let dueDate = '';
         item.column_values.forEach((col: any) => {
@@ -275,8 +289,14 @@ export async function fetchTasks(): Promise<Task[]> {
             const val = parseFloat(col.text);
             if (!isNaN(val)) effort = val;
           }
-          if (col.id === 'person' && col.text) {
-            assignee = col.text;
+          if (col.id === 'person') {
+            console.log('Processing main item person column:', col);
+            // Use the text field which contains the actual names
+            if (col.text && col.text.trim()) {
+              // Split by comma and clean up names
+              assignees = col.text.split(',').map((name: string) => name.trim()).filter((name: string) => name.length > 0);
+              console.log('Extracted main item assignees from text:', assignees);
+            }
           }
           if (col.id === 'status' && col.text) {
             status = col.text;
@@ -285,16 +305,20 @@ export async function fetchTasks(): Promise<Task[]> {
             dueDate = col.text;
           }
         });
-        if (effort > 0 && assignee) {
-          tasks.push({
-            id: item.id,
-            name: item.name,
-            effort,
-            assignee,
-            status,
-            dueDate,
-            isSubitem: false,
-            groupId: item.group?.id || '',
+        console.log(`Main item ${item.name}: effort=${effort}, assignees=${assignees.join(', ')}`);
+        if (effort > 0 && assignees.length > 0) {
+          // Create a separate task entry for each assignee
+          assignees.forEach(assignee => {
+            tasks.push({
+              id: `${item.id}-${assignee}`, // Unique ID for each assignee
+              name: item.name,
+              effort,
+              assignee,
+              status,
+              dueDate,
+              isSubitem: false,
+              groupId: item.group?.id || '',
+            });
           });
         }
       }
