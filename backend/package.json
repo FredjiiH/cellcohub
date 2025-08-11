@@ -15,7 +15,8 @@
     "dotenv": "^17.2.0",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
-    "jwks-rsa": "^3.0.1"
+    "jwks-rsa": "^3.0.1",
+    "mongodb": "^6.18.0"
   },
   "engines": {
     "node": ">=16.0.0"
