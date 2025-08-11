@@ -128,41 +128,45 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
     try {
       console.log('Fetching all data for user:', user.email);
       
-      // Fetch all data in parallel
-      const [groupsData, tasksData, teamData] = await Promise.all([
-        fetchGroups().catch(err => {
-          console.error('Error fetching groups:', err);
-          return [];
-        }),
-        fetchTasks().catch(err => {
-          console.error('Error fetching tasks:', err);
-          return [];
-        }),
-        (async () => {
-          try {
-            const response = await instance.acquireTokenSilent({
-              scopes: ['User.Read'],
-              account: user.account
-            });
-            
+              // Fetch all data in parallel
+        const [groupsData, tasksData, teamData] = await Promise.all([
+          fetchGroups().catch(err => {
+            console.error('Error fetching groups:', err);
+            return [];
+          }),
+          fetchTasks().catch(err => {
+            console.error('Error fetching tasks:', err);
+            return [];
+          }),
+          (async () => {
             const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
-            const res = await axios.get(`${backendUrl}/api/team`, {
-              headers: {
-                'Authorization': `Bearer ${response.accessToken}`,
-                'x-user-email': user.email,
-                'x-user-name': user.name
-              }
-            });
-            return res.data;
-          } catch (err) {
-            console.error('Error fetching team:', err);
-            return [
-              { name: 'Fredrik Helander', capacity: 40 },
-              { name: 'Fanny Wilgodt', capacity: 40 }
-            ];
-          }
-        })()
-      ]);
+            try {
+              const response = await instance.acquireTokenSilent({
+                scopes: ['User.Read'],
+                account: user.account
+              });
+              
+              const res = await axios.get(`${backendUrl}/api/team`, {
+                headers: {
+                  'Authorization': `Bearer ${response.accessToken}`,
+                  'x-user-email': user.email,
+                  'x-user-name': user.name
+                }
+              });
+              return res.data;
+            } catch (err: any) {
+              console.error('Error fetching team from backend:', err);
+              console.error('Backend URL attempted:', backendUrl);
+              console.error('Response details:', err.response?.data || 'No response data');
+              console.error('Status code:', err.response?.status || 'No status code');
+              
+              // Return existing team data instead of throwing error
+              // This prevents losing team members when backend is temporarily unavailable
+              console.log('Keeping existing team data due to backend error');
+              return team; // Return current team state instead of throwing
+            }
+          })()
+        ]);
       
       console.log('Manual refresh - All data fetched successfully');
       console.log('Groups:', groupsData);
@@ -210,13 +214,13 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
             return [];
           }),
           (async () => {
+            const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
             try {
               const response = await instance.acquireTokenSilent({
                 scopes: ['User.Read'],
                 account: user.account
               });
               
-              const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
               const res = await axios.get(`${backendUrl}/api/team`, {
                 headers: {
                   'Authorization': `Bearer ${response.accessToken}`,
@@ -225,12 +229,16 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
                 }
               });
               return res.data;
-            } catch (err) {
-              console.error('Error fetching team:', err);
-              return [
-                { name: 'Fredrik Helander', capacity: 40 },
-                { name: 'Fanny Wilgodt', capacity: 40 }
-              ];
+            } catch (err: any) {
+              console.error('Error fetching team from backend:', err);
+              console.error('Backend URL attempted:', backendUrl);
+              console.error('Response details:', err.response?.data || 'No response data');
+              console.error('Status code:', err.response?.status || 'No status code');
+              
+              // Return existing team data instead of throwing error
+              // This prevents losing team members when backend is temporarily unavailable
+              console.log('Keeping existing team data due to backend error');
+              return team; // Return current team state instead of throwing
             }
           })()
         ]);
