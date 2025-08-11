@@ -25,11 +25,29 @@ app.use((req, res, next) => {
 
 // Helper to read/write team data
 function readTeam() {
-  if (!fs.existsSync(DATA_FILE)) return [];
-  return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+  try {
+    if (!fs.existsSync(DATA_FILE)) {
+      console.log(`Team file does not exist: ${DATA_FILE}`);
+      return [];
+    }
+    const data = fs.readFileSync(DATA_FILE, 'utf8');
+    console.log(`Read team data from ${DATA_FILE}:`, data);
+    return JSON.parse(data);
+  } catch (error) {
+    console.error(`Error reading team file ${DATA_FILE}:`, error);
+    return [];
+  }
 }
+
 function writeTeam(data) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+  try {
+    console.log(`Writing team data to ${DATA_FILE}:`, JSON.stringify(data, null, 2));
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+    console.log(`Successfully wrote team data to ${DATA_FILE}`);
+  } catch (error) {
+    console.error(`Error writing team file ${DATA_FILE}:`, error);
+    throw error;
+  }
 }
 
 // Helper to read/write overrides
@@ -46,24 +64,55 @@ app.use('/api', validateToken, checkDomain);
 
 // Get all team members
 app.get('/api/team', (req, res) => {
-  res.json(readTeam());
+  console.log('=== GET TEAM MEMBERS ===');
+  console.log('User email:', req.headers['x-user-email']);
+  console.log('User name:', req.headers['x-user-name']);
+  
+  try {
+    const team = readTeam();
+    console.log('Returning team data:', team);
+    res.json(team);
+  } catch (error) {
+    console.error('Error in GET /api/team:', error);
+    res.status(500).json({ error: 'Failed to read team data' });
+  }
 });
 
 // Add or update a team member
 app.post('/api/team', (req, res) => {
+  console.log('=== ADD/UPDATE TEAM MEMBER ===');
+  console.log('Request body:', req.body);
+  console.log('User email:', req.headers['x-user-email']);
+  console.log('User name:', req.headers['x-user-name']);
+  
   const { name, capacity } = req.body;
   if (!name || typeof capacity !== 'number') {
+    console.error('Invalid request: missing name or capacity');
     return res.status(400).json({ error: 'Name and capacity required' });
   }
-  let team = readTeam();
-  const idx = team.findIndex(m => m.name === name);
-  if (idx >= 0) {
-    team[idx].capacity = capacity;
-  } else {
-    team.push({ name, capacity });
+  
+  try {
+    let team = readTeam();
+    console.log('Current team before update:', team);
+    
+    const idx = team.findIndex(m => m.name === name);
+    if (idx >= 0) {
+      console.log(`Updating existing member: ${name} with capacity ${capacity}`);
+      team[idx].capacity = capacity;
+    } else {
+      console.log(`Adding new member: ${name} with capacity ${capacity}`);
+      team.push({ name, capacity });
+    }
+    
+    console.log('Team after update:', team);
+    writeTeam(team);
+    
+    console.log('Successfully updated team data');
+    res.json(team);
+  } catch (error) {
+    console.error('Error in POST /api/team:', error);
+    res.status(500).json({ error: 'Failed to update team data' });
   }
-  writeTeam(team);
-  res.json(team);
 });
 
 // Delete a team member
@@ -105,4 +154,14 @@ app.delete('/api/overrides/:groupId/:name', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);
+  console.log(`Team data file: ${DATA_FILE}`);
+  console.log(`Overrides file: ${OVERRIDES_FILE}`);
+  
+  // Log initial team data
+  try {
+    const initialTeam = readTeam();
+    console.log('Initial team data on startup:', initialTeam);
+  } catch (error) {
+    console.error('Error reading initial team data:', error);
+  }
 }); 
