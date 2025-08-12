@@ -1,0 +1,5 @@
+[33me8fa0c11[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Fix multiple assignee workload allocation - each assignee gets full effort hours
+[33mf439391b[m[33m ([m[1;31morigin/feature/mongodb-database[m[33m, [m[1;32mfeature/mongodb-database[m[33m)[m Implement MongoDB database integration - Replace file-based storage with MongoDB Atlas - Add MongoDB connection and CRUD operations - Update backend to use persistent database storage - Fix team member persistence issue
+[33md45f8692[m Add comprehensive logging to backend team management - track file operations and API calls to debug team member persistence issues
+[33m2ae99b63[m Fix team data persistence - prevent fallback to default team when backend fails, keep existing team data instead
+[33m7af92fa1[m Fix manual refresh functionality - implement direct data fetching instead of relying on useEffect

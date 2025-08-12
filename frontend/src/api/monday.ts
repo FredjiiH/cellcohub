@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-// Monday.com API configuration
+// Monday.com API configuration - Updated for multiple assignee support
 const API_TOKEN = process.env.REACT_APP_MONDAY_API_TOKEN;
 const BOARD_ID = process.env.REACT_APP_MONDAY_BOARD_ID || '2038576678';
 const API_URL = 'https://api.monday.com/v2';
@@ -208,94 +208,83 @@ export async function fetchTasks(): Promise<Task[]> {
     const tasks: Task[] = [];
 
     items.forEach((item: any) => {
-      // Find subitems with valid effort and assignee
-      const validSubitems = (Array.isArray(item.subitems) ? item.subitems : []).filter((subitem: any) => {
+      // Process subitems first
+      const subitems = Array.isArray(item.subitems) ? item.subitems : [];
+      subitems.forEach((subitem: any) => {
         let effort = 0;
         let assignees: string[] = [];
+        let status = '';
+        let dueDate = '';
+        
         subitem.column_values.forEach((col: any) => {
           if (col.id === 'numeric_mksezpbh' && col.text) {
             const val = parseFloat(col.text);
             if (!isNaN(val)) effort = val;
           }
           if (col.id === 'person') {
-            console.log('Processing person column:', col);
-            // Use the text field which contains the actual names
             if (col.text && col.text.trim()) {
-              // Split by comma and clean up names
               assignees = col.text.split(',').map((name: string) => name.trim()).filter((name: string) => name.length > 0);
-              console.log('Extracted assignees from text:', assignees);
             }
+          }
+          if (col.id === 'status' && col.text) {
+            status = col.text;
+          }
+          if (col.id.startsWith('date') && col.text) {
+            dueDate = col.text;
           }
         });
-        console.log(`Subitem ${subitem.name}: effort=${effort}, assignees=${assignees.join(', ')}`);
-        return effort > 0 && assignees.length > 0;
-      });
-      if (validSubitems.length > 0) {
-        // Only count valid subitems, ignore main item effort
-        validSubitems.forEach((subitem: any) => {
-          let effort = 0;
-          let assignees: string[] = [];
-          let status = '';
-          let dueDate = '';
-          subitem.column_values.forEach((col: any) => {
-            if (col.id === 'numeric_mksezpbh' && col.text) {
-              const val = parseFloat(col.text);
-              if (!isNaN(val)) effort = val;
-            }
-            if (col.id === 'person') {
-              // Use the text field which contains the actual names
-              if (col.text && col.text.trim()) {
-                // Split by comma and clean up names
-                assignees = col.text.split(',').map((name: string) => name.trim()).filter((name: string) => name.length > 0);
-              }
-            }
-            if (col.id === 'status' && col.text) {
-              status = col.text;
-            }
-            if (col.id.startsWith('date') && col.text) {
-              dueDate = col.text;
-            }
-          });
-          // Subitem inherits parent group if missing or invalid
-          let groupId = subitem.group?.id || item.group?.id || '';
-          if (!validGroupIds.includes(groupId)) {
-            groupId = item.group?.id || '';
-          }
-          if (effort > 0 && assignees.length > 0) {
-            // Create a separate task entry for each assignee
-            assignees.forEach(assignee => {
-              tasks.push({
-                id: `${subitem.id}-${assignee}`, // Unique ID for each assignee
-                name: subitem.name,
-                effort,
-                assignee,
-                status,
-                dueDate,
-                isSubitem: true,
-                parentId: item.id,
-                groupId,
-              });
+        
+        let groupId = subitem.group?.id || item.group?.id || '';
+        if (!validGroupIds.includes(groupId)) {
+          groupId = item.group?.id || '';
+        }
+        
+        if (assignees.length > 0) {
+          // Create a separate task entry for each assignee
+          assignees.forEach(assignee => {
+            tasks.push({
+              id: `${subitem.id}-${assignee}`,
+              name: subitem.name,
+              effort,
+              assignee,
+              status,
+              dueDate,
+              isSubitem: true,
+              parentId: item.id,
+              groupId,
             });
-          }
-        });
-      } else {
-        // No valid subitems, use main item effort
+          });
+        } else {
+          // Unassigned subitem
+          tasks.push({
+            id: subitem.id,
+            name: subitem.name,
+            effort,
+            assignee: '',
+            status,
+            dueDate,
+            isSubitem: true,
+            parentId: item.id,
+            groupId,
+          });
+        }
+      });
+      
+      // Process main item if no subitems or if subitems don't have effort/assignees
+      if (subitems.length === 0) {
         let effort = 0;
         let assignees: string[] = [];
         let status = '';
         let dueDate = '';
+        
         item.column_values.forEach((col: any) => {
           if (col.id === 'numeric_mksee97s' && col.text) {
             const val = parseFloat(col.text);
             if (!isNaN(val)) effort = val;
           }
           if (col.id === 'person') {
-            console.log('Processing main item person column:', col);
-            // Use the text field which contains the actual names
             if (col.text && col.text.trim()) {
-              // Split by comma and clean up names
               assignees = col.text.split(',').map((name: string) => name.trim()).filter((name: string) => name.length > 0);
-              console.log('Extracted main item assignees from text:', assignees);
             }
           }
           if (col.id === 'status' && col.text) {
@@ -305,12 +294,12 @@ export async function fetchTasks(): Promise<Task[]> {
             dueDate = col.text;
           }
         });
-        console.log(`Main item ${item.name}: effort=${effort}, assignees=${assignees.join(', ')}`);
-        if (effort > 0 && assignees.length > 0) {
+        
+        if (assignees.length > 0) {
           // Create a separate task entry for each assignee
           assignees.forEach(assignee => {
             tasks.push({
-              id: `${item.id}-${assignee}`, // Unique ID for each assignee
+              id: `${item.id}-${assignee}`,
               name: item.name,
               effort,
               assignee,
@@ -320,9 +309,22 @@ export async function fetchTasks(): Promise<Task[]> {
               groupId: item.group?.id || '',
             });
           });
+        } else {
+          // Unassigned main item
+          tasks.push({
+            id: item.id,
+            name: item.name,
+            effort,
+            assignee: '',
+            status,
+            dueDate,
+            isSubitem: false,
+            groupId: item.group?.id || '',
+          });
         }
       }
     });
+    
     // Debug: print all extracted tasks
     console.log('Extracted tasks:', JSON.stringify(tasks, null, 2));
     return tasks;

@@ -4,6 +4,7 @@ import { PublicClientApplication } from '@azure/msal-browser';
 import { msalConfig } from './authConfig';
 import Login from './components/Login';
 import WorkloadDashboard from './components/WorkloadDashboard';
+import UnassignedTasksModule from './components/UnassignedTasksModule';
 import CapacityManager from './components/CapacityManager';
 import BoardInspector from './components/BoardInspector';
 import { fetchGroups, fetchTasks, Task, Group } from './api/monday';
@@ -321,10 +322,10 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
     const filteredForWorkload = filteredTasks.filter(
       t => t.isSubitem || (!t.isSubitem && !mainItemIdsWithSubitems.has(t.id))
     );
-    // Calculate workload per team member
+    // Calculate workload per team member (only for tasks with effort and assignees)
     const wl: { [name: string]: number } = {};
     filteredForWorkload.forEach(task => {
-      if (task.status !== 'Done') {
+      if (task.status !== 'Done' && task.effort > 0 && task.assignee && task.assignee.trim() !== '') {
         wl[task.assignee] = (wl[task.assignee] || 0) + task.effort;
       }
     });
@@ -744,9 +745,16 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
                   }}>
                     Workload Dashboard
                   </h2>
+                  
                   <WorkloadDashboard
                     team={team.map(m => ({ ...m, capacity: overrides[m.name] !== undefined ? overrides[m.name] : m.capacity }))}
                     workload={workload}
+                  />
+                  
+                  {/* Add the Unassigned Tasks Module */}
+                  <UnassignedTasksModule 
+                    tasks={tasks} 
+                    selectedGroup={selectedGroup} 
                   />
                 </div>
               </>
