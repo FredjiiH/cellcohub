@@ -19,7 +19,7 @@ import './App.css';
 const msalInstance = new PublicClientApplication(msalConfig);
 
 // Check Environment Access
-console.log('=== DEPLOYMENT DEBUG INFO ===');
+console.log('=== CELLCO HUB DEBUG INFO ===');
 console.log('NODE_ENV:', process.env.NODE_ENV);
 console.log('REACT_APP_MONDAY_API_TOKEN:', process.env.REACT_APP_MONDAY_API_TOKEN ? 'SET' : 'NOT SET');
 console.log('REACT_APP_MONDAY_BOARD_ID:', process.env.REACT_APP_MONDAY_BOARD_ID);
@@ -62,6 +62,7 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
   const [tab, setTab] = useState<'monday-data' | 'team-settings' | 'content-approval'>('monday-data');
   const [overrides, setOverrides] = useState<{ [name: string]: number }>({});
   const [overrideMember, setOverrideMember] = useState<string>('');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Add loading states
   const [isLoading, setIsLoading] = useState(false);
@@ -95,6 +96,18 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
     }
     // eslint-disable-next-line
   }, [overrideMember]);
+
+  // Close mobile menu on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 768 && mobileMenuOpen) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [mobileMenuOpen]);
 
   // Handle logout
   const handleLogout = async () => {
@@ -372,6 +385,20 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
     }
   };
   
+  // Handle mobile menu
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
+
+  const closeMobileMenu = () => {
+    setMobileMenuOpen(false);
+  };
+
+  const handleMobileNavClick = (newTab: 'monday-data' | 'team-settings' | 'content-approval') => {
+    setTab(newTab);
+    closeMobileMenu();
+  };
+
   // Handle reset override
   const handleResetOverride = async (name: string) => {
     if (!user) return;
@@ -408,110 +435,367 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
   return (
     <div className="App">
       {user && (
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          padding: '15px 20px',
-          backgroundColor: '#ffffff',
-          borderBottom: '1px solid #e1e5e9',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+        <header style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
           position: 'sticky',
           top: 0,
           zIndex: 1000
         }}>
-          <div>
-            <span style={{ fontWeight: '600', fontSize: '16px', color: '#333' }}>Welcome, {user.name}</span>
-            <span style={{ color: '#666', marginLeft: '10px', fontSize: '14px' }}>({user.email})</span>
+          <div className="header-container" style={{
+            maxWidth: '1400px',
+            margin: '0 auto',
+            padding: '0 24px'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              height: '70px'
+            }}>
+              {/* Left side - Logo/Brand */}
+              <div className="header-brand" style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16px'
+              }}>
+                <div className="header-logo" style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '22px',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                }}>
+                  ⚡
+                </div>
+                <div>
+                  <h1 style={{
+                    color: 'white',
+                    fontSize: '26px',
+                    fontWeight: '700',
+                    margin: 0,
+                    letterSpacing: '-0.8px'
+                  }}>
+                    Cellco Hub
+                  </h1>
+                  <p style={{
+                    color: 'rgba(255, 255, 255, 0.8)',
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    margin: 0,
+                    letterSpacing: '0.5px',
+                    textTransform: 'uppercase'
+                  }}>
+                    Marketing Operations
+                  </p>
+                </div>
+              </div>
+
+              {/* Center - Navigation */}
+              {!isLoading && dataLoaded && (
+                <nav className="header-nav" style={{
+                  display: 'flex',
+                  gap: '8px',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  padding: '6px',
+                  borderRadius: '12px',
+                  backdropFilter: 'blur(10px)'
+                }}>
+                  {hasModuleAccess('mondayData') && (
+                    <button
+                      className="nav-button"
+                      onClick={() => setTab('monday-data')}
+                      style={{
+                        padding: '10px 20px',
+                        backgroundColor: tab === 'monday-data' ? 'rgba(255, 255, 255, 0.9)' : 'transparent',
+                        color: tab === 'monday-data' ? '#667eea' : 'rgba(255, 255, 255, 0.9)',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontWeight: '500',
+                        fontSize: '15px',
+                        transition: 'all 0.2s ease',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      📈 Monday.com Data
+                    </button>
+                  )}
+                  
+                  {hasModuleAccess('teamSettings') && (
+                    <button
+                      className="nav-button"
+                      onClick={() => setTab('team-settings')}
+                      style={{
+                        padding: '10px 20px',
+                        backgroundColor: tab === 'team-settings' ? 'rgba(255, 255, 255, 0.9)' : 'transparent',
+                        color: tab === 'team-settings' ? '#667eea' : 'rgba(255, 255, 255, 0.9)',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontWeight: '500',
+                        fontSize: '15px',
+                        transition: 'all 0.2s ease',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      👥 Team Settings
+                    </button>
+                  )}
+                  
+                  {hasModuleAccess('contentApproval') && (
+                    <button
+                      className="nav-button"
+                      onClick={() => setTab('content-approval')}
+                      style={{
+                        padding: '10px 20px',
+                        backgroundColor: tab === 'content-approval' ? 'rgba(255, 255, 255, 0.9)' : 'transparent',
+                        color: tab === 'content-approval' ? '#667eea' : 'rgba(255, 255, 255, 0.9)',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontWeight: '500',
+                        fontSize: '15px',
+                        transition: 'all 0.2s ease',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      ✅ Content Approval
+                    </button>
+                  )}
+                </nav>
+              )}
+
+              {/* Right side - User info and actions */}
+              <div className="user-section" style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16px'
+              }}>
+                {/* Hamburger Menu Button (Mobile Only) */}
+                <button
+                  className={`hamburger-button ${mobileMenuOpen ? 'open' : ''}`}
+                  onClick={toggleMobileMenu}
+                  style={{ display: 'none' }}
+                >
+                  <div className="hamburger-line"></div>
+                  <div className="hamburger-line"></div>
+                  <div className="hamburger-line"></div>
+                </button>
+
+                <button
+                  className="refresh-btn"
+                  onClick={handleRefreshData}
+                  disabled={isLoading}
+                  style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    cursor: isLoading ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    transition: 'all 0.2s ease',
+                    opacity: isLoading ? 0.6 : 1,
+                    backdropFilter: 'blur(10px)'
+                  }}
+                >
+                  {isLoading ? '⏳' : '🔄'}
+                </button>
+                
+                <div className="user-info" style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '8px 16px',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  borderRadius: '12px',
+                  backdropFilter: 'blur(10px)'
+                }}>
+                  <div className="user-avatar" style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '16px'
+                  }}>
+                    👤
+                  </div>
+                  <span style={{
+                    color: 'white',
+                    fontWeight: '500',
+                    fontSize: '15px'
+                  }}>
+                    {user.name}
+                  </span>
+                  <button
+                    className="signout-btn"
+                    onClick={handleLogoutWithConfirmation}
+                    style={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                      color: 'white',
+                      border: 'none',
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      fontWeight: '500',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button 
-              onClick={handleRefreshData}
-              disabled={isLoading}
-              style={{
-                backgroundColor: '#28a745',
-                color: 'white',
-                border: 'none',
-                padding: '10px 20px',
-                borderRadius: '6px',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                transition: 'background-color 0.2s ease',
-                boxShadow: '0 2px 4px rgba(40, 167, 69, 0.2)',
-                opacity: isLoading ? 0.6 : 1
-              }}
-              onMouseEnter={(e) => {
-                if (!isLoading) {
-                  (e.target as HTMLElement).style.backgroundColor = '#218838';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isLoading) {
-                  (e.target as HTMLElement).style.backgroundColor = '#28a745';
-                }
-              }}
-            >
-              {isLoading ? 'Refreshing...' : '🔄 Refresh Data'}
-            </button>
-            <button 
-              onClick={handleLogoutWithConfirmation}
-              style={{
-                backgroundColor: '#6c757d',
-                color: 'white',
-                border: 'none',
-                padding: '10px 20px',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                transition: 'background-color 0.2s ease',
-                boxShadow: '0 2px 4px rgba(108, 117, 125, 0.2)'
-              }}
-              onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = '#5a6268'}
-              onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = '#6c757d'}
-            >
-              Sign Out
-            </button>
-          </div>
-        </div>
+        </header>
       )}
       
-      <div style={{ 
-        maxWidth: '1200px', 
+      {/* Mobile Menu Overlay and Sidebar */}
+      {user && (
+        <>
+          <div 
+            className={`mobile-menu-overlay ${mobileMenuOpen ? 'open' : ''}`}
+            onClick={closeMobileMenu}
+          ></div>
+          
+          <div className={`mobile-menu ${mobileMenuOpen ? 'open' : ''}`}>
+            <h3 style={{
+              color: 'white',
+              fontSize: '20px',
+              fontWeight: '600',
+              marginBottom: '32px',
+              textAlign: 'center'
+            }}>
+              Cellco Hub
+            </h3>
+            
+            {hasModuleAccess('mondayData') && (
+              <button
+                className={`mobile-menu-item ${tab === 'monday-data' ? 'active' : ''}`}
+                onClick={() => handleMobileNavClick('monday-data')}
+              >
+                📈 Monday.com Data
+              </button>
+            )}
+            
+            {hasModuleAccess('teamSettings') && (
+              <button
+                className={`mobile-menu-item ${tab === 'team-settings' ? 'active' : ''}`}
+                onClick={() => handleMobileNavClick('team-settings')}
+              >
+                👥 Team Settings
+              </button>
+            )}
+            
+            {hasModuleAccess('contentApproval') && (
+              <button
+                className={`mobile-menu-item ${tab === 'content-approval' ? 'active' : ''}`}
+                onClick={() => handleMobileNavClick('content-approval')}
+              >
+                ✅ Content Approval
+              </button>
+            )}
+            
+            <div style={{
+              position: 'absolute',
+              bottom: '24px',
+              left: '24px',
+              right: '24px',
+              padding: '16px',
+              background: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '12px',
+              textAlign: 'center'
+            }}>
+              <p style={{
+                color: 'rgba(255, 255, 255, 0.8)',
+                fontSize: '14px',
+                margin: '0 0 12px 0'
+              }}>
+                Signed in as
+              </p>
+              <p style={{
+                color: 'white',
+                fontSize: '16px',
+                fontWeight: '600',
+                margin: '0 0 16px 0'
+              }}>
+                {user.name}
+              </p>
+              <button
+                onClick={() => {
+                  closeMobileMenu();
+                  handleLogoutWithConfirmation();
+                }}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+      
+      <main className="main-content" style={{ 
+        maxWidth: '1400px', 
         margin: '0 auto', 
-        padding: '20px',
-        minHeight: 'calc(100vh - 80px)'
+        padding: '32px 24px',
+        minHeight: 'calc(100vh - 70px)',
+        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+        position: 'relative',
+        zIndex: 1
       }}>
-        <h1 style={{ 
-          textAlign: 'center', 
-          marginBottom: '30px',
-          color: '#333',
-          fontSize: '2.5rem',
-          fontWeight: '600'
-        }}>Monday.com Workload Tracker</h1>
         
         {isLoading && (
           <div style={{
             textAlign: 'center',
-            padding: '40px',
-            backgroundColor: '#ffffff',
-            borderRadius: '12px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            padding: '60px 40px',
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            borderRadius: '20px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
             marginBottom: '30px'
           }}>
             <div style={{
               display: 'inline-block',
-              width: '40px',
-              height: '40px',
-              border: '4px solid #f3f3f3',
-              borderTop: '4px solid #0073ea',
+              width: '50px',
+              height: '50px',
+              border: '4px solid rgba(102, 126, 234, 0.1)',
+              borderTop: '4px solid #667eea',
               borderRadius: '50%',
               animation: 'spin 1s linear infinite',
-              marginBottom: '20px'
+              marginBottom: '24px'
             }}></div>
-            <p style={{ color: '#666', fontSize: '16px', margin: 0 }}>
-              Loading your data...
+            <p style={{ 
+              color: '#667eea', 
+              fontSize: '18px', 
+              fontWeight: '500',
+              margin: 0 
+            }}>
+              Initializing Cellco Hub...
             </p>
           </div>
         )}
@@ -519,141 +803,48 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
         {!isLoading && !dataLoaded && user && (
           <div style={{
             textAlign: 'center',
-            padding: '40px',
-            backgroundColor: '#ffffff',
-            borderRadius: '12px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            padding: '60px 40px',
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            borderRadius: '20px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
             marginBottom: '30px'
           }}>
-            <p style={{ color: '#666', fontSize: '16px', marginBottom: '20px' }}>
+            <div style={{
+              fontSize: '48px',
+              marginBottom: '24px'
+            }}>⚠️</div>
+            <p style={{ 
+              color: '#667eea', 
+              fontSize: '18px', 
+              fontWeight: '500',
+              marginBottom: '24px' 
+            }}>
               No data loaded. This might be a temporary issue.
             </p>
             <button 
               onClick={handleRefreshData}
               style={{
-                padding: '12px 24px',
-                backgroundColor: '#0073ea',
+                padding: '14px 28px',
+                backgroundColor: '#667eea',
                 color: 'white',
                 border: 'none',
-                borderRadius: '8px',
+                borderRadius: '12px',
                 cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                transition: 'all 0.2s ease'
+                fontSize: '16px',
+                fontWeight: '600',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
               }}
             >
-              Retry Loading Data
+              🔄 Retry Loading Data
             </button>
           </div>
         )}
         
         {!isLoading && dataLoaded && (
           <>
-            <div style={{ 
-              textAlign: 'center', 
-              margin: '30px 0',
-              display: 'flex',
-              justifyContent: 'center',
-              gap: '10px',
-              flexWrap: 'wrap'
-            }}>
-              {hasModuleAccess('mondayData') && (
-                <button 
-                  onClick={() => setTab('monday-data')} 
-                  style={{ 
-                    padding: '12px 24px',
-                    backgroundColor: tab === 'monday-data' ? '#0073ea' : '#f8f9fa',
-                    color: tab === 'monday-data' ? 'white' : '#333',
-                    border: '1px solid #dee2e6',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    fontWeight: tab === 'monday-data' ? '600' : '500',
-                    fontSize: '16px',
-                    transition: 'all 0.2s ease',
-                    boxShadow: tab === 'monday-data' ? '0 4px 8px rgba(0, 115, 234, 0.3)' : '0 2px 4px rgba(0,0,0,0.1)'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (tab !== 'monday-data') {
-                      (e.target as HTMLElement).style.backgroundColor = '#e9ecef';
-                      (e.target as HTMLElement).style.transform = 'translateY(-1px)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (tab !== 'monday-data') {
-                      (e.target as HTMLElement).style.backgroundColor = '#f8f9fa';
-                      (e.target as HTMLElement).style.transform = 'translateY(0)';
-                    }
-                  }}
-                >
-                  Monday.com Data
-                </button>
-              )}
-              
-              {hasModuleAccess('teamSettings') && (
-                <button 
-                  onClick={() => setTab('team-settings')} 
-                  style={{ 
-                    padding: '12px 24px',
-                    backgroundColor: tab === 'team-settings' ? '#0073ea' : '#f8f9fa',
-                    color: tab === 'team-settings' ? 'white' : '#333',
-                    border: '1px solid #dee2e6',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    fontWeight: tab === 'team-settings' ? '600' : '500',
-                    fontSize: '16px',
-                    transition: 'all 0.2s ease',
-                    boxShadow: tab === 'team-settings' ? '0 4px 8px rgba(0, 115, 234, 0.3)' : '0 2px 4px rgba(0,0,0,0.1)'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (tab !== 'team-settings') {
-                      (e.target as HTMLElement).style.backgroundColor = '#e9ecef';
-                      (e.target as HTMLElement).style.transform = 'translateY(-1px)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (tab !== 'team-settings') {
-                      (e.target as HTMLElement).style.backgroundColor = '#f8f9fa';
-                      (e.target as HTMLElement).style.transform = 'translateY(0)';
-                    }
-                  }}
-                >
-                  Team Settings
-                </button>
-              )}
-              
-              {hasModuleAccess('contentApproval') && (
-                <button 
-                  onClick={() => setTab('content-approval')} 
-                  style={{ 
-                    padding: '12px 24px',
-                    backgroundColor: tab === 'content-approval' ? '#0073ea' : '#f8f9fa',
-                    color: tab === 'content-approval' ? 'white' : '#333',
-                    border: '1px solid #dee2e6',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    fontWeight: tab === 'content-approval' ? '600' : '500',
-                    fontSize: '16px',
-                    transition: 'all 0.2s ease',
-                    boxShadow: tab === 'content-approval' ? '0 4px 8px rgba(0, 115, 234, 0.3)' : '0 2px 4px rgba(0,0,0,0.1)'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (tab !== 'content-approval') {
-                      (e.target as HTMLElement).style.backgroundColor = '#e9ecef';
-                      (e.target as HTMLElement).style.transform = 'translateY(-1px)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (tab !== 'content-approval') {
-                      (e.target as HTMLElement).style.backgroundColor = '#f8f9fa';
-                      (e.target as HTMLElement).style.transform = 'translateY(0)';
-                    }
-                  }}
-                >
-                  Content Approval
-                </button>
-              )}
-            </div>
-            
             {tab === 'monday-data' && (
               <PermissionGuard user={user} requireModule="mondayData">
                 <div style={{ 
@@ -879,7 +1070,7 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
             )}
           </>
         )}
-      </div>
+      </main>
     </div>
   );
 }

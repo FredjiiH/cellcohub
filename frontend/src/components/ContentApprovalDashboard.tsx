@@ -260,7 +260,7 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
       {/* Service Controls */}
       <div className="service-controls" style={{ marginBottom: '30px' }}>
         <h3>Service Controls</h3>
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+        <div className="control-buttons" style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
           <button 
             onClick={startServices} 
             disabled={loading || serviceStatus?.fileMonitor.running}
@@ -327,7 +327,7 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
       {/* Manual Triggers */}
       <div className="manual-triggers" style={{ marginBottom: '30px' }}>
         <h3>Manual Triggers</h3>
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div className="trigger-buttons" style={{ display: 'flex', gap: '10px' }}>
           <button 
             onClick={triggerFileCheck} 
             disabled={loading}
@@ -365,7 +365,7 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
       {serviceStatus && (
         <div className="service-status" style={{ marginBottom: '30px' }}>
           <h3>Service Status {getHealthBadge()}</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          <div className="status-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             <div style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '4px' }}>
               <h4>File Monitor Service</h4>
               <p>Status: <strong>{serviceStatus.fileMonitor.running ? '🟢 Running' : '🔴 Stopped'}</strong></p>
@@ -384,7 +384,7 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
       {stats.length > 0 && (
         <div className="processing-stats" style={{ marginBottom: '30px' }}>
           <h3>Processing Statistics</h3>
-          <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #ddd' }}>
+          <table className="stats-table" style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #ddd' }}>
             <thead>
               <tr style={{ backgroundColor: '#f5f5f5' }}>
                 <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #ddd' }}>Action</th>
@@ -411,7 +411,7 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
       {processingLogs.length > 0 && (
         <div className="processing-logs">
           <h3>Recent Processing Logs (Last 20)</h3>
-          <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #ddd' }}>
+          <table className="logs-table" style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #ddd' }}>
             <thead>
               <tr style={{ backgroundColor: '#f5f5f5' }}>
                 <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #ddd' }}>Timestamp</th>
@@ -424,13 +424,13 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
             <tbody>
               {processingLogs.map((log) => (
                 <tr key={log._id}>
-                  <td style={{ padding: '10px', border: '1px solid #ddd', fontSize: '12px' }}>
+                  <td data-label="Timestamp" style={{ padding: '10px', border: '1px solid #ddd', fontSize: '12px' }}>
                     {formatTimestamp(log.timestamp)}
                   </td>
-                  <td style={{ padding: '10px', border: '1px solid #ddd' }}>{log.fileName}</td>
-                  <td style={{ padding: '10px', border: '1px solid #ddd' }}>{log.action}</td>
-                  <td style={{ padding: '10px', border: '1px solid #ddd' }}>{getStatusBadge(log.status)}</td>
-                  <td style={{ padding: '10px', border: '1px solid #ddd', fontSize: '12px' }}>{log.details}</td>
+                  <td data-label="File Name" style={{ padding: '10px', border: '1px solid #ddd' }}>{log.fileName}</td>
+                  <td data-label="Action" style={{ padding: '10px', border: '1px solid #ddd' }}>{log.action}</td>
+                  <td data-label="Status" style={{ padding: '10px', border: '1px solid #ddd' }}>{getStatusBadge(log.status)}</td>
+                  <td data-label="Details" style={{ padding: '10px', border: '1px solid #ddd', fontSize: '12px' }}>{log.details}</td>
                 </tr>
               ))}
             </tbody>

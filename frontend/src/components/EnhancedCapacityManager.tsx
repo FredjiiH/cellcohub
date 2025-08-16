@@ -52,6 +52,7 @@ const EnhancedCapacityManager: React.FC<EnhancedCapacityManagerProps> = ({ team,
   const [userPermissions, setUserPermissions] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expandedPermissions, setExpandedPermissions] = useState<{ [key: string]: boolean }>({});
 
   const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
 
@@ -229,9 +230,16 @@ const EnhancedCapacityManager: React.FC<EnhancedCapacityManagerProps> = ({ team,
 
   const canManageUsers = userPermissions.subcategoryAccess.canManageUsers;
 
+  const togglePermissions = (memberName: string) => {
+    setExpandedPermissions(prev => ({
+      ...prev,
+      [memberName]: !prev[memberName]
+    }));
+  };
+
   return (
     <div style={{ padding: '20px' }}>
-      <h2>Enhanced Team Management</h2>
+      <h2>Team Management</h2>
       
       {error && (
         <div style={{ 
@@ -249,57 +257,214 @@ const EnhancedCapacityManager: React.FC<EnhancedCapacityManagerProps> = ({ team,
       {canManageUsers && (
         <div style={{ 
           marginBottom: '30px', 
-          padding: '20px', 
-          border: '1px solid #ddd', 
-          borderRadius: '8px',
-          backgroundColor: '#f9f9f9'
+          padding: '24px', 
+          border: '1px solid #e1e5e9', 
+          borderRadius: '12px',
+          backgroundColor: '#ffffff',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
         }}>
-          <h3>Add New Team Member</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 100px 100px auto', gap: '10px', alignItems: 'center' }}>
-            <input
-              type="text"
-              placeholder="Name"
-              value={newMember.name}
-              onChange={(e) => setNewMember({ ...newMember, name: e.target.value })}
-              style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
-            />
-            <input
-              type="email"
-              placeholder="Email"
-              value={newMember.email}
-              onChange={(e) => setNewMember({ ...newMember, email: e.target.value })}
-              style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
-            />
-            <input
-              type="number"
-              placeholder="Capacity"
-              min="1"
-              value={newMember.capacity}
-              onChange={(e) => setNewMember({ ...newMember, capacity: Number(e.target.value) })}
-              style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
-            />
-            <select
-              value={newMember.role}
-              onChange={(e) => setNewMember({ ...newMember, role: e.target.value as 'admin' | 'user' })}
-              style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
-            >
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
-            </select>
-            <button 
-              onClick={handleAddMember}
-              disabled={loading}
-              style={{ 
-                padding: '8px 16px', 
-                backgroundColor: '#4caf50', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: '4px',
-                cursor: loading ? 'not-allowed' : 'pointer'
-              }}
-            >
-              {loading ? 'Adding...' : 'Add Member'}
-            </button>
+          <h3 style={{ margin: '0 0 24px 0', color: '#333', fontSize: '18px', fontWeight: '600' }}>Add New Team Member</h3>
+          
+          <div className="add-member-form">
+            {/* First Row - Name */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>
+                Full Name *
+              </label>
+              <input
+                type="text"
+                placeholder="Enter full name"
+                value={newMember.name}
+                onChange={(e) => setNewMember({ ...newMember, name: e.target.value })}
+                style={{ 
+                  width: '420px',
+                  maxWidth: '100%',
+                  padding: '14px 16px', 
+                  borderRadius: '8px', 
+                  border: '2px solid #d1d5db',
+                  fontSize: '15px',
+                  transition: 'all 0.2s ease',
+                  outline: 'none',
+                  backgroundColor: '#ffffff',
+                  boxSizing: 'border-box'
+                }}
+                onFocus={(e) => {
+                  (e.target as HTMLInputElement).style.borderColor = '#667eea';
+                  (e.target as HTMLInputElement).style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+                }}
+                onBlur={(e) => {
+                  (e.target as HTMLInputElement).style.borderColor = '#d1d5db';
+                  (e.target as HTMLInputElement).style.boxShadow = 'none';
+                }}
+              />
+            </div>
+
+            {/* Second Row - Email */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>
+                Email Address *
+              </label>
+              <input
+                type="email"
+                placeholder="Enter email address"
+                value={newMember.email}
+                onChange={(e) => setNewMember({ ...newMember, email: e.target.value })}
+                style={{ 
+                  width: '420px',
+                  maxWidth: '100%',
+                  padding: '14px 16px', 
+                  borderRadius: '8px', 
+                  border: '2px solid #d1d5db',
+                  fontSize: '15px',
+                  transition: 'all 0.2s ease',
+                  outline: 'none',
+                  backgroundColor: '#ffffff',
+                  boxSizing: 'border-box'
+                }}
+                onFocus={(e) => {
+                  (e.target as HTMLInputElement).style.borderColor = '#667eea';
+                  (e.target as HTMLInputElement).style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+                }}
+                onBlur={(e) => {
+                  (e.target as HTMLInputElement).style.borderColor = '#d1d5db';
+                  (e.target as HTMLInputElement).style.boxShadow = 'none';
+                }}
+              />
+            </div>
+
+            {/* Third Row - Capacity and Role */}
+            <div style={{ display: 'grid', gridTemplateColumns: '220px 180px', gap: '20px', marginBottom: '24px', width: '420px', maxWidth: '100%' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>
+                  Sprint Capacity
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="number"
+                    placeholder="40"
+                    min="1"
+                    max="80"
+                    value={newMember.capacity}
+                    onChange={(e) => setNewMember({ ...newMember, capacity: Number(e.target.value) })}
+                    style={{ 
+                      width: '100%',
+                      padding: '14px 45px 14px 16px', 
+                      borderRadius: '8px', 
+                      border: '2px solid #d1d5db',
+                      fontSize: '15px',
+                      transition: 'all 0.2s ease',
+                      outline: 'none',
+                      backgroundColor: '#ffffff',
+                      boxSizing: 'border-box'
+                    }}
+                    onFocus={(e) => {
+                      (e.target as HTMLInputElement).style.borderColor = '#667eea';
+                      (e.target as HTMLInputElement).style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+                    }}
+                    onBlur={(e) => {
+                      (e.target as HTMLInputElement).style.borderColor = '#d1d5db';
+                      (e.target as HTMLInputElement).style.boxShadow = 'none';
+                    }}
+                  />
+                  <span style={{
+                    position: 'absolute',
+                    right: '16px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: '#6b7280',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    pointerEvents: 'none'
+                  }}>
+                    hrs
+                  </span>
+                </div>
+              </div>
+              
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>
+                  Role
+                </label>
+                <select
+                  value={newMember.role}
+                  onChange={(e) => setNewMember({ ...newMember, role: e.target.value as 'admin' | 'user' })}
+                  style={{ 
+                    width: '100%',
+                    padding: '14px 16px', 
+                    borderRadius: '8px', 
+                    border: '2px solid #d1d5db',
+                    fontSize: '15px',
+                    backgroundColor: '#ffffff',
+                    cursor: 'pointer',
+                    outline: 'none',
+                    transition: 'all 0.2s ease',
+                    boxSizing: 'border-box'
+                  }}
+                  onFocus={(e) => {
+                    (e.target as HTMLSelectElement).style.borderColor = '#667eea';
+                    (e.target as HTMLSelectElement).style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    (e.target as HTMLSelectElement).style.borderColor = '#d1d5db';
+                    (e.target as HTMLSelectElement).style.boxShadow = 'none';
+                  }}
+                >
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Fourth Row - Add Button */}
+            <div style={{ textAlign: 'left' }}>
+              <button 
+                onClick={handleAddMember}
+                disabled={loading}
+                style={{ 
+                  padding: '14px 32px', 
+                  backgroundColor: loading ? '#9ca3af' : '#667eea', 
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: '8px',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  transition: 'all 0.2s ease',
+                  boxShadow: loading ? 'none' : '0 4px 6px rgba(102, 126, 234, 0.25)',
+                  whiteSpace: 'nowrap',
+                  height: '52px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading) {
+                    (e.target as HTMLElement).style.backgroundColor = '#5a67d8';
+                    (e.target as HTMLElement).style.transform = 'translateY(-1px)';
+                    (e.target as HTMLElement).style.boxShadow = '0 6px 8px rgba(102, 126, 234, 0.3)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!loading) {
+                    (e.target as HTMLElement).style.backgroundColor = '#667eea';
+                    (e.target as HTMLElement).style.transform = 'translateY(0)';
+                    (e.target as HTMLElement).style.boxShadow = '0 4px 6px rgba(102, 126, 234, 0.25)';
+                  }
+                }}
+              >
+                {loading ? (
+                  <>
+                    <span style={{ marginRight: '8px' }}>⏳</span>
+                    Adding...
+                  </>
+                ) : (
+                  <>
+                    <span style={{ marginRight: '8px' }}>👤</span>
+                    Add Member
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -314,11 +479,11 @@ const EnhancedCapacityManager: React.FC<EnhancedCapacityManagerProps> = ({ team,
             borderRadius: '8px',
             backgroundColor: '#ffffff'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+            <div className="member-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
               <div>
                 <h4 style={{ margin: '0 0 5px 0' }}>{member.name}</h4>
                 <p style={{ margin: '0', color: '#666', fontSize: '14px' }}>
-                  {member.email || 'No email'} • {member.capacity} hrs/week • {(member.role || 'user').toUpperCase()}
+                  {member.email || 'No email'} • {member.capacity} hrs/sprint • {(member.role || 'user').toUpperCase()}
                 </p>
               </div>
               {canManageUsers && (
@@ -354,52 +519,99 @@ const EnhancedCapacityManager: React.FC<EnhancedCapacityManagerProps> = ({ team,
               )}
             </div>
 
-            {/* Module Permissions */}
-            <div style={{ marginBottom: '15px' }}>
-              <h5 style={{ margin: '0 0 10px 0' }}>Module Access</h5>
-              <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-                {rolesPermissions && Object.entries(rolesPermissions.modules).map(([key, value]) => (
-                  <label key={key} style={{ display: 'flex', alignItems: 'center', cursor: canManageUsers ? 'pointer' : 'default' }}>
-                    <input
-                      type="checkbox"
-                      checked={member.permissions?.modules?.includes(value) || false}
-                      onChange={() => canManageUsers && toggleModuleAccess(member, value)}
-                      disabled={!canManageUsers}
-                      style={{ marginRight: '5px' }}
-                    />
-                    {getModuleDisplayName(value)}
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Subcategory Permissions */}
+            {/* Permissions Section */}
             <div>
-              <h5 style={{ margin: '0 0 10px 0' }}>Feature Access</h5>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
-                {rolesPermissions && Object.entries(rolesPermissions.subcategories).map(([key, value]) => {
-                  const modulePrefix = value.split('.')[0];
-                  if (!member.permissions?.modules?.includes(modulePrefix)) return null;
-                  
-                  return (
-                    <label key={key} style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      fontSize: '14px',
-                      cursor: canManageUsers ? 'pointer' : 'default'
-                    }}>
-                      <input
-                        type="checkbox"
-                        checked={member.permissions?.subcategories?.includes(value) || false}
-                        onChange={() => canManageUsers && toggleSubcategoryAccess(member, value)}
-                        disabled={!canManageUsers}
-                        style={{ marginRight: '5px' }}
-                      />
-                      {getSubcategoryDisplayName(value)}
-                    </label>
-                  );
-                })}
-              </div>
+              <button
+                onClick={() => togglePermissions(member.name)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  color: '#667eea',
+                  padding: '8px 0',
+                  marginBottom: '10px'
+                }}
+              >
+                <span style={{ 
+                  transform: expandedPermissions[member.name] ? 'rotate(90deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s ease'
+                }}>
+                  ▶
+                </span>
+                Module & Permission Settings
+              </button>
+              
+              {expandedPermissions[member.name] && (
+                <div style={{ 
+                  paddingLeft: '20px',
+                  borderLeft: '3px solid #f0f0f0',
+                  marginLeft: '10px'
+                }}>
+                  {/* Module Permissions */}
+                  <div style={{ marginBottom: '20px' }}>
+                    <h5 style={{ margin: '0 0 12px 0', color: '#555', fontSize: '14px', fontWeight: '600' }}>Module Access</h5>
+                    <div className="module-permissions" style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                      {rolesPermissions && Object.entries(rolesPermissions.modules).map(([key, value]) => (
+                        <label key={key} style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          cursor: canManageUsers ? 'pointer' : 'default',
+                          padding: '6px 12px',
+                          background: '#f8f9fa',
+                          borderRadius: '6px',
+                          fontSize: '14px'
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={member.permissions?.modules?.includes(value) || false}
+                            onChange={() => canManageUsers && toggleModuleAccess(member, value)}
+                            disabled={!canManageUsers}
+                            style={{ marginRight: '8px' }}
+                          />
+                          {getModuleDisplayName(value)}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Subcategory Permissions */}
+                  <div>
+                    <h5 style={{ margin: '0 0 12px 0', color: '#555', fontSize: '14px', fontWeight: '600' }}>Feature Access</h5>
+                    <div className="subcategory-permissions" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
+                      {rolesPermissions && Object.entries(rolesPermissions.subcategories).map(([key, value]) => {
+                        const modulePrefix = value.split('.')[0];
+                        if (!member.permissions?.modules?.includes(modulePrefix)) return null;
+                        
+                        return (
+                          <label key={key} style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            fontSize: '13px',
+                            cursor: canManageUsers ? 'pointer' : 'default',
+                            padding: '4px 8px',
+                            background: '#f9f9f9',
+                            borderRadius: '4px'
+                          }}>
+                            <input
+                              type="checkbox"
+                              checked={member.permissions?.subcategories?.includes(value) || false}
+                              onChange={() => canManageUsers && toggleSubcategoryAccess(member, value)}
+                              disabled={!canManageUsers}
+                              style={{ marginRight: '6px' }}
+                            />
+                            {getSubcategoryDisplayName(value)}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -407,7 +619,7 @@ const EnhancedCapacityManager: React.FC<EnhancedCapacityManagerProps> = ({ team,
 
       {/* Edit Member Modal */}
       {editingMember && canManageUsers && (
-        <div style={{
+        <div className="modal-overlay" style={{
           position: 'fixed',
           top: 0,
           left: 0,
@@ -419,7 +631,7 @@ const EnhancedCapacityManager: React.FC<EnhancedCapacityManagerProps> = ({ team,
           alignItems: 'center',
           zIndex: 1000
         }}>
-          <div style={{
+          <div className="modal-content" style={{
             backgroundColor: 'white',
             padding: '30px',
             borderRadius: '8px',
@@ -447,7 +659,7 @@ const EnhancedCapacityManager: React.FC<EnhancedCapacityManagerProps> = ({ team,
               />
             </div>
             <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Capacity (hours/week):</label>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Capacity (hours/sprint):</label>
               <input
                 type="number"
                 min="1"
