@@ -6,7 +6,11 @@ import Login from './components/Login';
 import WorkloadDashboard from './components/WorkloadDashboard';
 import UnassignedTasksModule from './components/UnassignedTasksModule';
 import CapacityManager from './components/CapacityManager';
+import EnhancedCapacityManager from './components/EnhancedCapacityManager';
 import BoardInspector from './components/BoardInspector';
+import ContentApprovalDashboard from './components/ContentApprovalDashboard';
+import PermissionGuard from './components/PermissionGuard';
+import { usePermissions } from './hooks/usePermissions';
 import { fetchGroups, fetchTasks, Task, Group } from './api/monday';
 import axios from 'axios';
 import './App.css';
@@ -29,7 +33,15 @@ console.log('================================');
 
 interface TeamMember {
   name: string;
+  email: string;
   capacity: number;
+  role: 'admin' | 'user';
+  permissions: {
+    modules: string[];
+    subcategories: string[];
+  };
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface User {
@@ -40,13 +52,14 @@ interface User {
 
 function AppContent({ user, setUser }: { user: User | null; setUser: (user: User | null) => void }) {
   const { instance } = useMsal();
+  const { permissions, hasModuleAccess } = usePermissions(user);
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [workload, setWorkload] = useState<{ [name: string]: number }>({});
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<string>('');
   const [showInspector, setShowInspector] = useState(false);
-  const [tab, setTab] = useState<'dashboard' | 'settings'>('dashboard');
+  const [tab, setTab] = useState<'monday-data' | 'team-settings' | 'content-approval'>('monday-data');
   const [overrides, setOverrides] = useState<{ [name: string]: number }>({});
   const [overrideMember, setOverrideMember] = useState<string>('');
 
@@ -96,7 +109,7 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
       setOverrides({});
       setOverrideMember('');
       setPendingOverride(undefined);
-      setTab('dashboard');
+      setTab('monday-data');
       setShowInspector(false);
       
       // Logout from MSAL
@@ -541,70 +554,108 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
               margin: '30px 0',
               display: 'flex',
               justifyContent: 'center',
-              gap: '10px'
+              gap: '10px',
+              flexWrap: 'wrap'
             }}>
-              <button 
-                onClick={() => setTab('dashboard')} 
-                style={{ 
-                  padding: '12px 24px',
-                  backgroundColor: tab === 'dashboard' ? '#0073ea' : '#f8f9fa',
-                  color: tab === 'dashboard' ? 'white' : '#333',
-                  border: '1px solid #dee2e6',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontWeight: tab === 'dashboard' ? '600' : '500',
-                  fontSize: '16px',
-                  transition: 'all 0.2s ease',
-                  boxShadow: tab === 'dashboard' ? '0 4px 8px rgba(0, 115, 234, 0.3)' : '0 2px 4px rgba(0,0,0,0.1)'
-                }}
-                onMouseEnter={(e) => {
-                  if (tab !== 'dashboard') {
-                    (e.target as HTMLElement).style.backgroundColor = '#e9ecef';
-                    (e.target as HTMLElement).style.transform = 'translateY(-1px)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (tab !== 'dashboard') {
-                    (e.target as HTMLElement).style.backgroundColor = '#f8f9fa';
-                    (e.target as HTMLElement).style.transform = 'translateY(0)';
-                  }
-                }}
-              >
-                Dashboard
-              </button>
-              <button 
-                onClick={() => setTab('settings')} 
-                style={{ 
-                  padding: '12px 24px',
-                  backgroundColor: tab === 'settings' ? '#0073ea' : '#f8f9fa',
-                  color: tab === 'settings' ? 'white' : '#333',
-                  border: '1px solid #dee2e6',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontWeight: tab === 'settings' ? '600' : '500',
-                  fontSize: '16px',
-                  transition: 'all 0.2s ease',
-                  boxShadow: tab === 'settings' ? '0 4px 8px rgba(0, 115, 234, 0.3)' : '0 2px 4px rgba(0,0,0,0.1)'
-                }}
-                onMouseEnter={(e) => {
-                  if (tab !== 'settings') {
-                    (e.target as HTMLElement).style.backgroundColor = '#e9ecef';
-                    (e.target as HTMLElement).style.transform = 'translateY(-1px)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (tab !== 'settings') {
-                    (e.target as HTMLElement).style.backgroundColor = '#f8f9fa';
-                    (e.target as HTMLElement).style.transform = 'translateY(0)';
-                  }
-                }}
-              >
-                Team Settings
-              </button>
+              {hasModuleAccess('mondayData') && (
+                <button 
+                  onClick={() => setTab('monday-data')} 
+                  style={{ 
+                    padding: '12px 24px',
+                    backgroundColor: tab === 'monday-data' ? '#0073ea' : '#f8f9fa',
+                    color: tab === 'monday-data' ? 'white' : '#333',
+                    border: '1px solid #dee2e6',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: tab === 'monday-data' ? '600' : '500',
+                    fontSize: '16px',
+                    transition: 'all 0.2s ease',
+                    boxShadow: tab === 'monday-data' ? '0 4px 8px rgba(0, 115, 234, 0.3)' : '0 2px 4px rgba(0,0,0,0.1)'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (tab !== 'monday-data') {
+                      (e.target as HTMLElement).style.backgroundColor = '#e9ecef';
+                      (e.target as HTMLElement).style.transform = 'translateY(-1px)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (tab !== 'monday-data') {
+                      (e.target as HTMLElement).style.backgroundColor = '#f8f9fa';
+                      (e.target as HTMLElement).style.transform = 'translateY(0)';
+                    }
+                  }}
+                >
+                  Monday.com Data
+                </button>
+              )}
+              
+              {hasModuleAccess('teamSettings') && (
+                <button 
+                  onClick={() => setTab('team-settings')} 
+                  style={{ 
+                    padding: '12px 24px',
+                    backgroundColor: tab === 'team-settings' ? '#0073ea' : '#f8f9fa',
+                    color: tab === 'team-settings' ? 'white' : '#333',
+                    border: '1px solid #dee2e6',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: tab === 'team-settings' ? '600' : '500',
+                    fontSize: '16px',
+                    transition: 'all 0.2s ease',
+                    boxShadow: tab === 'team-settings' ? '0 4px 8px rgba(0, 115, 234, 0.3)' : '0 2px 4px rgba(0,0,0,0.1)'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (tab !== 'team-settings') {
+                      (e.target as HTMLElement).style.backgroundColor = '#e9ecef';
+                      (e.target as HTMLElement).style.transform = 'translateY(-1px)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (tab !== 'team-settings') {
+                      (e.target as HTMLElement).style.backgroundColor = '#f8f9fa';
+                      (e.target as HTMLElement).style.transform = 'translateY(0)';
+                    }
+                  }}
+                >
+                  Team Settings
+                </button>
+              )}
+              
+              {hasModuleAccess('contentApproval') && (
+                <button 
+                  onClick={() => setTab('content-approval')} 
+                  style={{ 
+                    padding: '12px 24px',
+                    backgroundColor: tab === 'content-approval' ? '#0073ea' : '#f8f9fa',
+                    color: tab === 'content-approval' ? 'white' : '#333',
+                    border: '1px solid #dee2e6',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: tab === 'content-approval' ? '600' : '500',
+                    fontSize: '16px',
+                    transition: 'all 0.2s ease',
+                    boxShadow: tab === 'content-approval' ? '0 4px 8px rgba(0, 115, 234, 0.3)' : '0 2px 4px rgba(0,0,0,0.1)'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (tab !== 'content-approval') {
+                      (e.target as HTMLElement).style.backgroundColor = '#e9ecef';
+                      (e.target as HTMLElement).style.transform = 'translateY(-1px)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (tab !== 'content-approval') {
+                      (e.target as HTMLElement).style.backgroundColor = '#f8f9fa';
+                      (e.target as HTMLElement).style.transform = 'translateY(0)';
+                    }
+                  }}
+                >
+                  Content Approval
+                </button>
+              )}
             </div>
             
-            {tab === 'dashboard' && (
-              <>
+            {tab === 'monday-data' && (
+              <PermissionGuard user={user} requireModule="mondayData">
                 <div style={{ 
                   margin: '30px 0', 
                   textAlign: 'center',
@@ -629,16 +680,17 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
                   </select>
                 </div>
                 
-                <div style={{ 
-                  margin: '30px 0',
-                  padding: '20px',
-                  backgroundColor: '#ffffff',
-                  borderRadius: '12px',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-                }}>
-                  <h2 style={{ textAlign: 'center', marginBottom: '20px', color: '#333', fontSize: '1.5rem' }}>
-                    Team Member Capacity (Sprint Override)
-                  </h2>
+                <PermissionGuard user={user} requireSubcategory="canManageCapacity" silent>
+                  <div style={{ 
+                    margin: '30px 0',
+                    padding: '20px',
+                    backgroundColor: '#ffffff',
+                    borderRadius: '12px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                  }}>
+                    <h2 style={{ textAlign: 'center', marginBottom: '20px', color: '#333', fontSize: '1.5rem' }}>
+                      Team Member Capacity (Sprint Override)
+                    </h2>
                   <div style={{ marginBottom: '20px', textAlign: 'center' }}>
                     <label htmlFor="override-member" style={{ fontWeight: '600', marginRight: '10px', color: '#333' }}>
                       Select Team Member:
@@ -728,7 +780,8 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
                         )}
                       </div>
                     )}
-                </div>
+                  </div>
+                </PermissionGuard>
                 
                 <div style={{
                   padding: '20px',
@@ -757,56 +810,72 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
                     selectedGroup={selectedGroup} 
                   />
                 </div>
-              </>
+              </PermissionGuard>
             )}
             
-            {tab === 'settings' && (
-              <>
+            {tab === 'team-settings' && (
+              <PermissionGuard user={user} requireModule="teamSettings">
                 <div style={{
                   padding: '20px',
                   backgroundColor: '#ffffff',
                   borderRadius: '12px',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
                 }}>
-                  <CapacityManager team={team} setTeam={setTeam} user={user} />
+                  <EnhancedCapacityManager team={team} setTeam={setTeam} user={user} />
                 </div>
-                <div style={{ 
-                  marginTop: '30px',
-                  textAlign: 'center',
+                
+                <PermissionGuard user={user} requireSubcategory="canUseBoardInspector">
+                  <div style={{ 
+                    marginTop: '30px',
+                    textAlign: 'center',
+                    padding: '20px',
+                    backgroundColor: '#ffffff',
+                    borderRadius: '12px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                  }}>
+                    <button 
+                      onClick={() => setShowInspector(v => !v)} 
+                      style={{ 
+                        marginBottom: '20px',
+                        padding: '12px 24px',
+                        backgroundColor: '#17a2b8',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '16px',
+                        fontWeight: '500',
+                        transition: 'all 0.2s ease',
+                        boxShadow: '0 2px 4px rgba(23, 162, 184, 0.3)'
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.target as HTMLElement).style.backgroundColor = '#138496';
+                        (e.target as HTMLElement).style.transform = 'translateY(-1px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.target as HTMLElement).style.backgroundColor = '#17a2b8';
+                        (e.target as HTMLElement).style.transform = 'translateY(0)';
+                      }}
+                    >
+                      {showInspector ? 'Hide' : 'Show'} Board Structure Inspector
+                    </button>
+                    {showInspector && <BoardInspector />}
+                  </div>
+                </PermissionGuard>
+              </PermissionGuard>
+            )}
+
+            {tab === 'content-approval' && (
+              <PermissionGuard user={user} requireModule="contentApproval">
+                <div style={{
                   padding: '20px',
                   backgroundColor: '#ffffff',
                   borderRadius: '12px',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
                 }}>
-                  <button 
-                    onClick={() => setShowInspector(v => !v)} 
-                    style={{ 
-                      marginBottom: '20px',
-                      padding: '12px 24px',
-                      backgroundColor: '#17a2b8',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      fontSize: '16px',
-                      fontWeight: '500',
-                      transition: 'all 0.2s ease',
-                      boxShadow: '0 2px 4px rgba(23, 162, 184, 0.3)'
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.target as HTMLElement).style.backgroundColor = '#138496';
-                      (e.target as HTMLElement).style.transform = 'translateY(-1px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.target as HTMLElement).style.backgroundColor = '#17a2b8';
-                      (e.target as HTMLElement).style.transform = 'translateY(0)';
-                    }}
-                  >
-                    {showInspector ? 'Hide' : 'Show'} Board Structure Inspector
-                  </button>
-                  {showInspector && <BoardInspector />}
+                  <ContentApprovalDashboard user={user} />
                 </div>
-              </>
+              </PermissionGuard>
             )}
           </>
         )}
