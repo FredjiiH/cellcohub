@@ -1,0 +1,215 @@
+const GraphClientService = require('./graphClient');
+
+class SharePointService {
+    constructor() {
+        this.graphClientService = new GraphClientService();
+        this.graphClient = this.graphClientService.getClient();
+        
+        this.siteId = null;
+        this.driveId = null;
+        this.readyToReviewFolderId = null;
+        this.finalOrgFolderId = null;
+    }
+
+    async initialize() {
+        try {
+            // Resolve site ID
+            const siteUrl = 'cellcoab.sharepoint.com:/sites/MarketingSales';
+            const site = await this.graphClient.api(`/sites/${siteUrl}`).get();
+            this.siteId = site.id;
+
+            // Get drive
+            const drive = await this.graphClient.api(`/sites/${this.siteId}/drive`).get();
+            this.driveId = drive.id;
+
+            // Resolve folder IDs
+            await this.resolveFolderIds();
+            
+            console.log('SharePoint service initialized successfully');
+            return true;
+        } catch (error) {
+            console.error('Failed to initialize SharePoint service:', error);
+            throw error;
+        }
+    }
+
+    async resolveFolderIds() {
+        try {
+            // Ready to Review folder
+            const readyToReviewPath = '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Ready to Review';
+            const readyFolder = await this.graphClient
+                .api(`/sites/${this.siteId}/drive/root:${readyToReviewPath}`)
+                .get();
+            this.readyToReviewFolderId = readyFolder.id;
+
+            // Final organization folder (create if doesn't exist)
+            const finalOrgPath = '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Final organization';
+            try {
+                const finalFolder = await this.graphClient
+                    .api(`/sites/${this.siteId}/drive/root:${finalOrgPath}`)
+                    .get();
+                this.finalOrgFolderId = finalFolder.id;
+            } catch (error) {
+                if (error.code === 'itemNotFound') {
+                    console.log('Final organization folder not found, creating...');
+                    const parentPath = '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval';
+                    const parentFolder = await this.graphClient
+                        .api(`/sites/${this.siteId}/drive/root:${parentPath}`)
+                        .get();
+                    
+                    const newFolder = await this.graphClient
+                        .api(`/sites/${this.siteId}/drive/items/${parentFolder.id}/children`)
+                        .post({
+                            name: 'Final organization',
+                            folder: {},
+                            '@microsoft.graph.conflictBehavior': 'rename'
+                        });
+                    
+                    this.finalOrgFolderId = newFolder.id;
+                    console.log('Created Final organization folder');
+                } else {
+                    throw error;
+                }
+            }
+
+            console.log('Folder IDs resolved:', {
+                readyToReview: this.readyToReviewFolderId,
+                finalOrg: this.finalOrgFolderId
+            });
+        } catch (error) {
+            console.error('Error resolving folder IDs:', error);
+            throw error;
+        }
+    }
+
+    async getFilesInReadyToReview() {
+        try {
+            const response = await this.graphClient
+                .api(`/sites/${this.siteId}/drive/items/${this.readyToReviewFolderId}/children`)
+                .filter('file ne null') // Only get files, not folders
+                .get();
+
+            return response.value || [];
+        } catch (error) {
+            console.error('Error getting files from Ready to Review folder:', error);
+            throw error;
+        }
+    }
+
+    async moveFileToFinalOrg(fileId, fileName) {
+        try {
+            // Move file to Final organization folder
+            const moveResponse = await this.graphClient
+                .api(`/sites/${this.siteId}/drive/items/${fileId}`)
+                .patch({
+                    parentReference: {
+                        id: this.finalOrgFolderId
+                    },
+                    name: fileName // Keep original name or could modify if needed
+                });
+
+            console.log(`Successfully moved file ${fileName} to Final organization`);
+            return moveResponse;
+        } catch (error) {
+            console.error(`Error moving file ${fileName}:`, error);
+            throw error;
+        }
+    }
+
+    parseFileName(fileName) {
+        try {
+            // Remove file extension
+            const nameWithoutExt = fileName.replace(/\.[^/.]+$/, '');
+            
+            // Parse pattern: "{Purpose} - {DescriptiveName} - {yyyymmdd} - {Version}"
+            const pattern = /^(.+?) - (.+?) - (\d{8}) - (.+?)$/;
+            const match = nameWithoutExt.match(pattern);
+
+            if (!match) {
+                throw new Error(`Filename does not match expected pattern: ${fileName}`);
+            }
+
+            const [, purpose, descriptiveName, dateStr, version] = match;
+            
+            // Convert yyyymmdd to ISO date
+            const year = dateStr.substring(0, 4);
+            const month = dateStr.substring(4, 6);
+            const day = dateStr.substring(6, 8);
+            const versionDate = new Date(`${year}-${month}-${day}`);
+
+            if (isNaN(versionDate.getTime())) {
+                throw new Error(`Invalid date in filename: ${dateStr}`);
+            }
+
+            return {
+                purpose: purpose.trim(),
+                descriptiveName: descriptiveName.trim(),
+                versionDate: versionDate.toISOString().split('T')[0], // yyyy-MM-dd format
+                version: version.trim(),
+                fileName: nameWithoutExt
+            };
+        } catch (error) {
+            console.error(`Error parsing filename ${fileName}:`, error);
+            throw error;
+        }
+    }
+
+    async getFileMetadata(fileId) {
+        try {
+            const file = await this.graphClient
+                .api(`/sites/${this.siteId}/drive/items/${fileId}`)
+                .select('id,name,webUrl,createdDateTime,createdBy,size')
+                .get();
+
+            return {
+                fileId: file.id,
+                fileName: file.name,
+                fileUrl: file.webUrl,
+                created: file.createdDateTime,
+                uploader: file.createdBy?.user?.displayName || 'Unknown',
+                size: file.size
+            };
+        } catch (error) {
+            console.error(`Error getting file metadata for ${fileId}:`, error);
+            throw error;
+        }
+    }
+
+    createStep1RowData(fileMetadata, parsedName) {
+        const now = new Date().toISOString();
+        
+        return [
+            fileMetadata.fileId,                    // FileID (system)
+            parsedName.fileName,                    // File Name
+            fileMetadata.fileUrl,                   // File URL
+            parsedName.purpose,                     // Purpose
+            parsedName.descriptiveName,             // Descriptive Name
+            parsedName.versionDate,                 // Version Date
+            parsedName.version,                     // Version
+            fileMetadata.uploader,                  // Uploader
+            fileMetadata.created,                   // Created
+            'Normal',                               // Priority
+            'Pending Micke Review',                 // Status
+            '',                                     // Micke Notes
+            '',                                     // Routed On (system)
+            'Intake row created',                   // Last Action (system)
+            ''                                      // Error (system)
+        ];
+    }
+
+    async checkFileExists(fileId) {
+        try {
+            await this.graphClient
+                .api(`/sites/${this.siteId}/drive/items/${fileId}`)
+                .get();
+            return true;
+        } catch (error) {
+            if (error.code === 'itemNotFound') {
+                return false;
+            }
+            throw error;
+        }
+    }
+}
+
+module.exports = SharePointService;

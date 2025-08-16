@@ -6,6 +6,8 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const { MongoClient, ServerApiVersion } = require('mongodb');
 const { validateToken, checkDomain } = require('./authMiddleware');
+const ContentApprovalManager = require('./services/contentApprovalManager');
+const { TeamMember, ROLES, MODULES, SUBCATEGORIES } = require('./models/teamMember');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -17,6 +19,7 @@ const TEAM_COLLECTION = 'team';
 const OVERRIDES_COLLECTION = 'overrides';
 
 let db;
+let contentApprovalManager;
 
 // Connect to MongoDB
 async function connectToMongo() {
@@ -29,11 +32,31 @@ async function connectToMongo() {
     // Initialize with default team data if collection is empty
     const teamCount = await db.collection(TEAM_COLLECTION).countDocuments();
     if (teamCount === 0) {
-      console.log('Initializing team collection with default data');
-      await db.collection(TEAM_COLLECTION).insertMany([
-        { name: 'Fredrik Helander', capacity: 65 },
-        { name: 'Fanny Wilgodt', capacity: 65 }
-      ]);
+      console.log('Initializing team collection with enhanced team member data');
+      const defaultMembers = [
+        new TeamMember({
+          name: 'Fredrik Helander',
+          email: 'fredrik.helander@cellcolabs.com',
+          capacity: 65,
+          role: ROLES.ADMIN
+        }),
+        new TeamMember({
+          name: 'Fanny Wilgodt', 
+          email: 'fanny.wilgodt@cellcolabs.com',
+          capacity: 65,
+          role: ROLES.USER,
+          permissions: {
+            modules: [MODULES.MONDAY_DATA],
+            subcategories: [
+              SUBCATEGORIES.MONDAY_DATA_VIEW_DASHBOARD,
+              SUBCATEGORIES.MONDAY_DATA_MANAGE_CAPACITY,
+              SUBCATEGORIES.MONDAY_DATA_VIEW_ANALYTICS
+            ]
+          }
+        })
+      ];
+      
+      await db.collection(TEAM_COLLECTION).insertMany(defaultMembers.map(m => m.toJSON()));
     }
   } catch (error) {
     console.error('Failed to connect to MongoDB:', error);
@@ -63,17 +86,65 @@ async function getTeam() {
   }
 }
 
-async function updateTeamMember(name, capacity) {
+async function updateTeamMember(memberData) {
   try {
-    const result = await db.collection(TEAM_COLLECTION).updateOne(
+    const { name, email, capacity, role, permissions } = memberData;
+    
+    // Validate the data
+    const validationErrors = TeamMember.validate(memberData);
+    if (validationErrors.length > 0) {
+      throw new Error(`Validation failed: ${validationErrors.join(', ')}`);
+    }
+
+    // Check if member exists
+    const existingMember = await db.collection(TEAM_COLLECTION).findOne({ name: name });
+    
+    let teamMember;
+    if (existingMember) {
+      // Update existing member
+      teamMember = new TeamMember(existingMember);
+      teamMember.email = email || teamMember.email;
+      teamMember.capacity = capacity !== undefined ? capacity : teamMember.capacity;
+      
+      if (role && role !== teamMember.role) {
+        teamMember.updateRole(role);
+      }
+      
+      if (permissions) {
+        teamMember.permissions = permissions;
+        teamMember.updatedAt = new Date();
+      }
+    } else {
+      // Create new member
+      teamMember = new TeamMember({
+        name,
+        email,
+        capacity,
+        role,
+        permissions
+      });
+    }
+
+    const result = await db.collection(TEAM_COLLECTION).replaceOne(
       { name: name },
-      { $set: { name: name, capacity: capacity } },
+      teamMember.toJSON(),
       { upsert: true }
     );
-    console.log(`Updated team member in MongoDB: ${name} with capacity ${capacity}`);
+    
+    console.log(`Updated team member in MongoDB: ${name}`);
     return result;
   } catch (error) {
     console.error('Error updating team member in MongoDB:', error);
+    throw error;
+  }
+}
+
+async function getTeamMemberByEmail(email) {
+  try {
+    const member = await db.collection(TEAM_COLLECTION).findOne({ email: email });
+    return member ? new TeamMember(member) : null;
+  } catch (error) {
+    console.error('Error getting team member by email:', error);
     throw error;
   }
 }
@@ -154,32 +225,109 @@ app.post('/api/team', async (req, res) => {
   console.log('User email:', req.headers['x-user-email']);
   console.log('User name:', req.headers['x-user-name']);
   
-  const { name, capacity } = req.body;
-  if (!name || typeof capacity !== 'number') {
-    console.error('Invalid request: missing name or capacity');
-    return res.status(400).json({ error: 'Name and capacity required' });
+  const { name, email, capacity, role, permissions } = req.body;
+  if (!name) {
+    console.error('Invalid request: missing name');
+    return res.status(400).json({ error: 'Name is required' });
   }
   
   try {
-    await updateTeamMember(name, capacity);
+    // Check if current user has permission to manage team members
+    const currentUserEmail = req.headers['x-user-email'];
+    const currentUser = await getTeamMemberByEmail(currentUserEmail);
+    
+    if (!currentUser || !currentUser.hasSubcategoryAccess(SUBCATEGORIES.TEAM_SETTINGS_MANAGE_USERS)) {
+      return res.status(403).json({ error: 'Insufficient permissions to manage team members' });
+    }
+
+    await updateTeamMember({ name, email, capacity, role, permissions });
     const team = await getTeam();
     console.log('Successfully updated team data');
     res.json(team);
   } catch (error) {
     console.error('Error in POST /api/team:', error);
-    res.status(500).json({ error: 'Failed to update team data' });
+    res.status(500).json({ error: error.message || 'Failed to update team data' });
   }
 });
 
 // Delete a team member
 app.delete('/api/team/:name', async (req, res) => {
   try {
+    // Check if current user has permission to manage team members
+    const currentUserEmail = req.headers['x-user-email'];
+    const currentUser = await getTeamMemberByEmail(currentUserEmail);
+    
+    if (!currentUser || !currentUser.hasSubcategoryAccess(SUBCATEGORIES.TEAM_SETTINGS_MANAGE_USERS)) {
+      return res.status(403).json({ error: 'Insufficient permissions to delete team members' });
+    }
+
     await deleteTeamMember(req.params.name);
     const team = await getTeam();
     res.json(team);
   } catch (error) {
     console.error('Error in DELETE /api/team:', error);
     res.status(500).json({ error: 'Failed to delete team member' });
+  }
+});
+
+// Get current user's permissions
+app.get('/api/user/permissions', async (req, res) => {
+  try {
+    const currentUserEmail = req.headers['x-user-email'];
+    const currentUser = await getTeamMemberByEmail(currentUserEmail);
+    
+    if (!currentUser) {
+      return res.status(404).json({ error: 'User not found in team database' });
+    }
+
+    res.json({
+      user: currentUser.toJSON(),
+      hasAccess: {
+        teamSettings: currentUser.hasModuleAccess(MODULES.TEAM_SETTINGS),
+        contentApproval: currentUser.hasModuleAccess(MODULES.CONTENT_APPROVAL),
+        mondayData: currentUser.hasModuleAccess(MODULES.MONDAY_DATA)
+      },
+      subcategoryAccess: {
+        canManageUsers: currentUser.hasSubcategoryAccess(SUBCATEGORIES.TEAM_SETTINGS_MANAGE_USERS),
+        canViewUsers: currentUser.hasSubcategoryAccess(SUBCATEGORIES.TEAM_SETTINGS_VIEW_USERS),
+        canManageContentServices: currentUser.hasSubcategoryAccess(SUBCATEGORIES.CONTENT_APPROVAL_MANAGE_SERVICES),
+        canViewContentLogs: currentUser.hasSubcategoryAccess(SUBCATEGORIES.CONTENT_APPROVAL_VIEW_LOGS),
+        canUseMondayDashboard: currentUser.hasSubcategoryAccess(SUBCATEGORIES.MONDAY_DATA_VIEW_DASHBOARD),
+        canManageCapacity: currentUser.hasSubcategoryAccess(SUBCATEGORIES.MONDAY_DATA_MANAGE_CAPACITY),
+        canViewAnalytics: currentUser.hasSubcategoryAccess(SUBCATEGORIES.MONDAY_DATA_VIEW_ANALYTICS),
+        canUseBoardInspector: currentUser.hasSubcategoryAccess(SUBCATEGORIES.MONDAY_DATA_BOARD_INSPECTOR)
+      }
+    });
+  } catch (error) {
+    console.error('Error getting user permissions:', error);
+    res.status(500).json({ error: 'Failed to get user permissions' });
+  }
+});
+
+// Get available roles and permissions metadata
+app.get('/api/roles-permissions', async (req, res) => {
+  try {
+    res.json({
+      roles: ROLES,
+      modules: MODULES,
+      subcategories: SUBCATEGORIES,
+      defaultPermissions: {
+        [ROLES.ADMIN]: {
+          modules: Object.values(MODULES),
+          subcategories: Object.values(SUBCATEGORIES)
+        },
+        [ROLES.USER]: {
+          modules: [MODULES.MONDAY_DATA],
+          subcategories: [
+            SUBCATEGORIES.MONDAY_DATA_VIEW_DASHBOARD,
+            SUBCATEGORIES.MONDAY_DATA_VIEW_ANALYTICS
+          ]
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error getting roles and permissions:', error);
+    res.status(500).json({ error: 'Failed to get roles and permissions' });
   }
 });
 
@@ -202,6 +350,14 @@ app.post('/api/overrides/:groupId', async (req, res) => {
   }
   
   try {
+    // Check if current user has permission to manage capacity
+    const currentUserEmail = req.headers['x-user-email'];
+    const currentUser = await getTeamMemberByEmail(currentUserEmail);
+    
+    if (!currentUser || !currentUser.hasSubcategoryAccess(SUBCATEGORIES.MONDAY_DATA_MANAGE_CAPACITY)) {
+      return res.status(403).json({ error: 'Insufficient permissions to manage capacity overrides' });
+    }
+
     await updateOverride(req.params.groupId, name, capacity);
     const overrides = await getOverrides(req.params.groupId);
     res.json(overrides);
@@ -214,12 +370,230 @@ app.post('/api/overrides/:groupId', async (req, res) => {
 // Delete an override for a user in a sprint/group
 app.delete('/api/overrides/:groupId/:name', async (req, res) => {
   try {
+    // Check if current user has permission to manage capacity
+    const currentUserEmail = req.headers['x-user-email'];
+    const currentUser = await getTeamMemberByEmail(currentUserEmail);
+    
+    if (!currentUser || !currentUser.hasSubcategoryAccess(SUBCATEGORIES.MONDAY_DATA_MANAGE_CAPACITY)) {
+      return res.status(403).json({ error: 'Insufficient permissions to manage capacity overrides' });
+    }
+
     await deleteOverride(req.params.groupId, req.params.name);
     const overrides = await getOverrides(req.params.groupId);
     res.json(overrides);
   } catch (error) {
     console.error('Error in DELETE /api/overrides:', error);
     res.status(500).json({ error: 'Failed to delete override' });
+  }
+});
+
+// ============= CONTENT APPROVAL API ROUTES =============
+
+// Get content approval service status
+app.get('/api/content-approval/status', async (req, res) => {
+  try {
+    if (!contentApprovalManager) {
+      return res.status(503).json({ error: 'Content approval service not initialized' });
+    }
+    
+    const status = await contentApprovalManager.getServiceStatus();
+    res.json(status);
+  } catch (error) {
+    console.error('Error getting content approval status:', error);
+    res.status(500).json({ error: 'Failed to get service status' });
+  }
+});
+
+// Health check for content approval services
+app.get('/api/content-approval/health', async (req, res) => {
+  try {
+    if (!contentApprovalManager) {
+      return res.status(503).json({ 
+        status: 'unhealthy', 
+        error: 'Content approval service not initialized' 
+      });
+    }
+    
+    const health = await contentApprovalManager.healthCheck();
+    const statusCode = health.status === 'healthy' ? 200 : 503;
+    res.status(statusCode).json(health);
+  } catch (error) {
+    console.error('Error in health check:', error);
+    res.status(500).json({ 
+      status: 'unhealthy', 
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Start content approval services
+app.post('/api/content-approval/start', async (req, res) => {
+  try {
+    const accessToken = req.headers.authorization?.replace('Bearer ', '');
+    if (!accessToken) {
+      return res.status(401).json({ error: 'Access token required' });
+    }
+
+    if (!contentApprovalManager) {
+      contentApprovalManager = new ContentApprovalManager();
+    }
+    
+    await contentApprovalManager.start(accessToken);
+    const status = await contentApprovalManager.getServiceStatus();
+    res.json({ message: 'Content approval services started', status });
+  } catch (error) {
+    console.error('Error starting content approval services:', error);
+    res.status(500).json({ error: 'Failed to start services' });
+  }
+});
+
+// Stop content approval services
+app.post('/api/content-approval/stop', async (req, res) => {
+  try {
+    if (!contentApprovalManager) {
+      return res.json({ message: 'Content approval services not running' });
+    }
+    
+    await contentApprovalManager.stop();
+    const status = await contentApprovalManager.getServiceStatus();
+    res.json({ message: 'Content approval services stopped', status });
+  } catch (error) {
+    console.error('Error stopping content approval services:', error);
+    res.status(500).json({ error: 'Failed to stop services' });
+  }
+});
+
+// Restart content approval services
+app.post('/api/content-approval/restart', async (req, res) => {
+  try {
+    if (!contentApprovalManager) {
+      contentApprovalManager = new ContentApprovalManager();
+    }
+    
+    await contentApprovalManager.restart();
+    const status = await contentApprovalManager.getServiceStatus();
+    res.json({ message: 'Content approval services restarted', status });
+  } catch (error) {
+    console.error('Error restarting content approval services:', error);
+    res.status(500).json({ error: 'Failed to restart services' });
+  }
+});
+
+// Manual triggers
+app.post('/api/content-approval/trigger/file-check', async (req, res) => {
+  try {
+    if (!contentApprovalManager) {
+      return res.status(503).json({ error: 'Content approval service not initialized' });
+    }
+    
+    await contentApprovalManager.triggerFileCheck();
+    res.json({ message: 'File check triggered successfully' });
+  } catch (error) {
+    console.error('Error triggering file check:', error);
+    res.status(500).json({ error: 'Failed to trigger file check' });
+  }
+});
+
+app.post('/api/content-approval/trigger/status-check', async (req, res) => {
+  try {
+    if (!contentApprovalManager) {
+      return res.status(503).json({ error: 'Content approval service not initialized' });
+    }
+    
+    await contentApprovalManager.triggerStatusCheck();
+    res.json({ message: 'Status check triggered successfully' });
+  } catch (error) {
+    console.error('Error triggering status check:', error);
+    res.status(500).json({ error: 'Failed to trigger status check' });
+  }
+});
+
+// Data access endpoints
+app.get('/api/content-approval/step1-data', async (req, res) => {
+  try {
+    if (!contentApprovalManager) {
+      return res.status(503).json({ error: 'Content approval service not initialized' });
+    }
+    
+    const data = await contentApprovalManager.getStep1Data();
+    res.json(data);
+  } catch (error) {
+    console.error('Error getting Step1 data:', error);
+    res.status(500).json({ error: 'Failed to get Step1 data' });
+  }
+});
+
+app.get('/api/content-approval/mrl-data', async (req, res) => {
+  try {
+    if (!contentApprovalManager) {
+      return res.status(503).json({ error: 'Content approval service not initialized' });
+    }
+    
+    const data = await contentApprovalManager.getMRLData();
+    res.json(data);
+  } catch (error) {
+    console.error('Error getting MRL data:', error);
+    res.status(500).json({ error: 'Failed to get MRL data' });
+  }
+});
+
+app.get('/api/content-approval/sharepoint-files', async (req, res) => {
+  try {
+    if (!contentApprovalManager) {
+      return res.status(503).json({ error: 'Content approval service not initialized' });
+    }
+    
+    const files = await contentApprovalManager.getReadyToReviewFiles();
+    res.json(files);
+  } catch (error) {
+    console.error('Error getting SharePoint files:', error);
+    res.status(500).json({ error: 'Failed to get SharePoint files' });
+  }
+});
+
+// Logging and monitoring endpoints
+app.get('/api/content-approval/logs/processing', async (req, res) => {
+  try {
+    if (!contentApprovalManager) {
+      return res.status(503).json({ error: 'Content approval service not initialized' });
+    }
+    
+    const limit = parseInt(req.query.limit) || 100;
+    const logs = await contentApprovalManager.getProcessingLogs(limit);
+    res.json(logs);
+  } catch (error) {
+    console.error('Error getting processing logs:', error);
+    res.status(500).json({ error: 'Failed to get processing logs' });
+  }
+});
+
+app.get('/api/content-approval/logs/errors', async (req, res) => {
+  try {
+    if (!contentApprovalManager) {
+      return res.status(503).json({ error: 'Content approval service not initialized' });
+    }
+    
+    const limit = parseInt(req.query.limit) || 50;
+    const logs = await contentApprovalManager.getErrorLogs(limit);
+    res.json(logs);
+  } catch (error) {
+    console.error('Error getting error logs:', error);
+    res.status(500).json({ error: 'Failed to get error logs' });
+  }
+});
+
+app.get('/api/content-approval/stats', async (req, res) => {
+  try {
+    if (!contentApprovalManager) {
+      return res.status(503).json({ error: 'Content approval service not initialized' });
+    }
+    
+    const stats = await contentApprovalManager.getProcessingStats();
+    res.json(stats);
+  } catch (error) {
+    console.error('Error getting processing stats:', error);
+    res.status(500).json({ error: 'Failed to get processing stats' });
   }
 });
 
