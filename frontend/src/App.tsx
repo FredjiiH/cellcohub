@@ -351,7 +351,7 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
     // Calculate workload per team member (only for tasks with effort and assignees)
     const wl: { [name: string]: number } = {};
     filteredForWorkload.forEach(task => {
-      if (task.status !== 'Done' && task.effort > 0 && task.assignee && task.assignee.trim() !== '') {
+      if (task.effort > 0 && task.assignee && task.assignee.trim() !== '') {
         wl[task.assignee] = (wl[task.assignee] || 0) + task.effort;
       }
     });

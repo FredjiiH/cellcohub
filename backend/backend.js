@@ -597,6 +597,80 @@ app.get('/api/content-approval/stats', async (req, res) => {
   }
 });
 
+// Get user permissions
+app.get('/api/user/permissions', async (req, res) => {
+  try {
+    const userEmail = req.headers['x-user-email'];
+    const userName = req.headers['x-user-name'];
+
+    if (!userEmail || !userName) {
+      return res.status(400).json({ error: 'User email and name required in headers' });
+    }
+
+    // Get user from team collection
+    const team = await getTeam();
+    const user = team.find(member => member.email.toLowerCase() === userEmail.toLowerCase());
+
+    if (!user) {
+      // Default permissions for users not in team (limited access)
+      return res.json({
+        user: {
+          name: userName,
+          email: userEmail,
+          capacity: 40,
+          role: 'user',
+          permissions: {
+            modules: ['monday-data'],
+            subcategories: ['canUseMondayDashboard', 'canViewAnalytics']
+          }
+        },
+        hasAccess: {
+          teamSettings: false,
+          contentApproval: false,
+          mondayData: true
+        },
+        subcategoryAccess: {
+          canManageUsers: false,
+          canViewUsers: false,
+          canManageContentServices: false,
+          canViewContentLogs: false,
+          canUseMondayDashboard: true,
+          canManageCapacity: false,
+          canViewAnalytics: true,
+          canUseBoardInspector: false
+        }
+      });
+    }
+
+    // User found in team - return their permissions
+    const hasAccess = {
+      teamSettings: user.role === 'admin' || user.permissions.modules.includes('team-settings'),
+      contentApproval: user.role === 'admin' || user.permissions.modules.includes('content-approval'),
+      mondayData: user.role === 'admin' || user.permissions.modules.includes('monday-data')
+    };
+
+    const subcategoryAccess = {
+      canManageUsers: user.role === 'admin' || user.permissions.subcategories.includes('canManageUsers'),
+      canViewUsers: user.role === 'admin' || user.permissions.subcategories.includes('canViewUsers'),
+      canManageContentServices: user.role === 'admin' || user.permissions.subcategories.includes('canManageContentServices'),
+      canViewContentLogs: user.role === 'admin' || user.permissions.subcategories.includes('canViewContentLogs'),
+      canUseMondayDashboard: user.role === 'admin' || user.permissions.subcategories.includes('canUseMondayDashboard'),
+      canManageCapacity: user.role === 'admin' || user.permissions.subcategories.includes('canManageCapacity'),
+      canViewAnalytics: user.role === 'admin' || user.permissions.subcategories.includes('canViewAnalytics'),
+      canUseBoardInspector: user.role === 'admin' || user.permissions.subcategories.includes('canUseBoardInspector')
+    };
+
+    res.json({
+      user,
+      hasAccess,
+      subcategoryAccess
+    });
+  } catch (error) {
+    console.error('Error in GET /api/user/permissions:', error);
+    res.status(500).json({ error: 'Failed to fetch user permissions' });
+  }
+});
+
 // Start server after MongoDB connection
 async function startServer() {
   await connectToMongo();
