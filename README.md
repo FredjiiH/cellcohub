@@ -1,11 +1,11 @@
-# Monday.com Workload Tracker
+# CellcoHub
 
-A React TypeScript application for tracking team workload from Monday.com boards with sprint-specific capacity overrides.
+A React TypeScript application for tracking team workload from Monday.com boards with sprint-specific capacity overrides and content approval automation.
 
 ## Project Structure
 
 ```
-monday-workload-app/
+cellcohub/
 ├── frontend/          # React frontend application
 │   ├── src/          # React source code
 │   ├── public/       # Static assets
