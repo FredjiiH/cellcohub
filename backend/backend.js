@@ -389,11 +389,206 @@ app.delete('/api/overrides/:groupId/:name', async (req, res) => {
 
 // ============= CONTENT APPROVAL API ROUTES =============
 
+// Test endpoint to check service creation (bypassing auth middleware)
+app.get('/test/content-approval/service-creation', async (req, res) => {
+  try {
+    console.log('Testing service creation...');
+    const ContentApprovalManager = require('./services/contentApprovalManager');
+    console.log('ContentApprovalManager class loaded successfully');
+    
+    const testManager = new ContentApprovalManager();
+    console.log('ContentApprovalManager instance created successfully');
+    
+    res.json({ 
+      message: 'Service creation test passed',
+      services: {
+        fileMonitor: !!testManager.fileMonitorService,
+        statusRouter: !!testManager.statusRouterService,
+        excel: !!testManager.excelService,
+        sharePoint: !!testManager.sharePointService
+      }
+    });
+  } catch (error) {
+    console.error('Service creation test failed:', error);
+    res.status(500).json({ 
+      error: 'Service creation failed', 
+      details: error.message,
+      stack: error.stack
+    });
+  }
+});
+
+// Test start endpoint without auth for debugging (bypassing auth middleware)
+app.post('/test/content-approval/start-test', async (req, res) => {
+  try {
+    console.log('=== TESTING START WITHOUT AUTH ===');
+    
+    // Fake access token for testing
+    const fakeToken = 'test-token-123';
+    
+    console.log('Creating new ContentApprovalManager...');
+    const testManager = new ContentApprovalManager();
+    
+    console.log('Starting content approval manager with fake token...');
+    await testManager.start(fakeToken);
+    
+    console.log('Getting service status...');
+    const status = await testManager.getServiceStatus();
+    
+    res.json({ 
+      message: 'Test start completed (this will fail at SharePoint connection)', 
+      status,
+      note: 'This is expected to fail at SharePoint connection since we used a fake token'
+    });
+  } catch (error) {
+    console.error('Test start failed (expected):', error.message);
+    res.json({ 
+      message: 'Test start failed as expected', 
+      error: error.message,
+      note: 'This failure is expected - it shows the initialization process works until SharePoint connection'
+    });
+  }
+});
+
+// Test SharePoint permissions and connectivity
+app.post('/test/sharepoint-permissions', async (req, res) => {
+  try {
+    console.log('=== TESTING SHAREPOINT PERMISSIONS ===');
+    
+    const accessToken = req.headers.authorization?.replace('Bearer ', '');
+    if (!accessToken) {
+      return res.status(401).json({ error: 'Access token required' });
+    }
+
+    const GraphClientService = require('./services/graphClient');
+    const graphService = new GraphClientService();
+    graphService.setAccessToken(accessToken);
+    const graphClient = graphService.getClient();
+
+    const tests = [];
+    
+    // Test 1: Basic site access
+    try {
+      console.log('Testing basic site access...');
+      const siteUrl = 'cellcoab.sharepoint.com:/sites/MarketingSales';
+      const site = await graphClient.api(`/sites/${siteUrl}`).get();
+      tests.push({
+        name: 'Site Access',
+        status: 'success',
+        details: `Site ID: ${site.id}`,
+        siteId: site.id
+      });
+    } catch (error) {
+      tests.push({
+        name: 'Site Access',
+        status: 'failed',
+        error: error.message,
+        statusCode: error.statusCode || error.status
+      });
+    }
+
+    // Test 2: Drive access
+    let driveId = null;
+    try {
+      console.log('Testing drive access...');
+      const siteUrl = 'cellcoab.sharepoint.com:/sites/MarketingSales';
+      const site = await graphClient.api(`/sites/${siteUrl}`).get();
+      const drive = await graphClient.api(`/sites/${site.id}/drive`).get();
+      driveId = drive.id;
+      tests.push({
+        name: 'Drive Access',
+        status: 'success',
+        details: `Drive ID: ${drive.id}`,
+        driveId: drive.id
+      });
+    } catch (error) {
+      tests.push({
+        name: 'Drive Access',
+        status: 'failed',
+        error: error.message,
+        statusCode: error.statusCode || error.status
+      });
+    }
+
+    // Test 3: Test folder access
+    if (driveId) {
+      try {
+        console.log('Testing test folder access...');
+        const testFolderPath = '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval Test';
+        const testFolder = await graphClient.api(`/drives/${driveId}/root:${testFolderPath}`).get();
+        tests.push({
+          name: 'Test Folder Access',
+          status: 'success',
+          details: `Folder ID: ${testFolder.id}`,
+          folderId: testFolder.id
+        });
+      } catch (error) {
+        tests.push({
+          name: 'Test Folder Access',
+          status: 'failed',
+          error: error.message,
+          statusCode: error.statusCode || error.status
+        });
+      }
+    }
+
+    // Test 4: Excel file access
+    if (driveId) {
+      const excelFiles = [
+        '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval Test/Content_Review_step1 Test.xlsx',
+        '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval Test/Content Review sheet Medical Regulatory and Legal Test.xlsx'
+      ];
+
+      for (const filePath of excelFiles) {
+        try {
+          console.log(`Testing Excel file access: ${filePath}`);
+          const file = await graphClient.api(`/drives/${driveId}/root:${filePath}`).get();
+          tests.push({
+            name: `Excel File: ${filePath.split('/').pop()}`,
+            status: 'success',
+            details: `File ID: ${file.id}`,
+            fileId: file.id
+          });
+        } catch (error) {
+          tests.push({
+            name: `Excel File: ${filePath.split('/').pop()}`,
+            status: 'failed',
+            error: error.message,
+            statusCode: error.statusCode || error.status,
+            filePath: filePath
+          });
+        }
+      }
+    }
+
+    res.json({
+      message: 'SharePoint permissions test completed',
+      tests: tests,
+      summary: {
+        total: tests.length,
+        passed: tests.filter(t => t.status === 'success').length,
+        failed: tests.filter(t => t.status === 'failed').length
+      }
+    });
+  } catch (error) {
+    console.error('SharePoint permissions test failed:', error);
+    res.status(500).json({
+      error: 'Test failed',
+      details: error.message
+    });
+  }
+});
+
 // Get content approval service status
 app.get('/api/content-approval/status', async (req, res) => {
   try {
     if (!contentApprovalManager) {
-      return res.status(503).json({ error: 'Content approval service not initialized' });
+      return res.json({
+        initialized: false,
+        fileMonitor: { running: false, intervalMinutes: 2 },
+        statusRouter: { running: false, intervalMinutes: 5 },
+        message: 'Service not started - click Start Services to begin'
+      });
     }
     
     const status = await contentApprovalManager.getServiceStatus();
@@ -408,9 +603,10 @@ app.get('/api/content-approval/status', async (req, res) => {
 app.get('/api/content-approval/health', async (req, res) => {
   try {
     if (!contentApprovalManager) {
-      return res.status(503).json({ 
-        status: 'unhealthy', 
-        error: 'Content approval service not initialized' 
+      return res.json({ 
+        status: 'not-started', 
+        message: 'Content approval service not started yet',
+        timestamp: new Date().toISOString()
       });
     }
     
@@ -430,21 +626,38 @@ app.get('/api/content-approval/health', async (req, res) => {
 // Start content approval services
 app.post('/api/content-approval/start', async (req, res) => {
   try {
+    console.log('=== STARTING CONTENT APPROVAL SERVICES ===');
+    console.log('Request headers:', Object.keys(req.headers));
+    
     const accessToken = req.headers.authorization?.replace('Bearer ', '');
     if (!accessToken) {
+      console.error('No access token provided in Authorization header');
       return res.status(401).json({ error: 'Access token required' });
     }
 
+    console.log('Access token received (length):', accessToken.length);
+
     if (!contentApprovalManager) {
+      console.log('Creating new ContentApprovalManager...');
       contentApprovalManager = new ContentApprovalManager();
     }
     
+    console.log('Starting content approval manager with access token...');
     await contentApprovalManager.start(accessToken);
+    
+    console.log('Getting service status...');
     const status = await contentApprovalManager.getServiceStatus();
+    
+    console.log('Services started successfully:', status);
     res.json({ message: 'Content approval services started', status });
   } catch (error) {
     console.error('Error starting content approval services:', error);
-    res.status(500).json({ error: 'Failed to start services' });
+    console.error('Stack trace:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to start services', 
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
@@ -556,7 +769,7 @@ app.get('/api/content-approval/sharepoint-files', async (req, res) => {
 app.get('/api/content-approval/logs/processing', async (req, res) => {
   try {
     if (!contentApprovalManager) {
-      return res.status(503).json({ error: 'Content approval service not initialized' });
+      return res.json([]); // Return empty array when not initialized
     }
     
     const limit = parseInt(req.query.limit) || 100;
@@ -586,7 +799,7 @@ app.get('/api/content-approval/logs/errors', async (req, res) => {
 app.get('/api/content-approval/stats', async (req, res) => {
   try {
     if (!contentApprovalManager) {
-      return res.status(503).json({ error: 'Content approval service not initialized' });
+      return res.json([]); // Return empty array when not initialized
     }
     
     const stats = await contentApprovalManager.getProcessingStats();

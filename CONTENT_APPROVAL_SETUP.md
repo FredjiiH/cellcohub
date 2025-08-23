@@ -26,39 +26,44 @@ Navigate to **API permissions** and add these Microsoft Graph permissions:
 6. **Important**: Click "Grant admin consent" for your tenant
 
 ### 3. Verify Client Secret
-Your existing client secret should work: `213c576b-54ff-4438-8aa2-e2340a566b58y`
+Ensure your existing client secret is configured in your `.env` file (see Environment Configuration section below).
 
 ## SharePoint Site Configuration
 
 ### Verify Site Access
 Your site: `https://cellcoab.sharepoint.com/sites/MarketingSales`
 
-### Required Folders:
-1. **Ready to Review** (source folder):
-   `/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Ready to Review/`
+### Required Folders (TEST ENVIRONMENT):
+1. **Ready to Review Test** (source folder):
+   `/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval Test/Ready to Review Test/`
 
-2. **Final organization** (target folder):
-   `/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Final organization/`
+2. **Final organization Test** (target folder):
+   `/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval Test/Final organization Test/`
    *(Will be created automatically if it doesn't exist)*
 
-### Excel Files:
+### Excel Files (TEST ENVIRONMENT):
 1. **Step 1 Review File**:
-   `/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Content_Review_step1.xlsx`
+   `/General/MARKETING & COMMUNICATIONS/Projects/Content approval Test/Content_Review_step1 Test.xlsx`
    - Table name: `Step1_Review`
 
 2. **MRL Review File**:
-   `/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Content Review sheet Medical Regulatory and Legal.xlsx`
+   `/General/MARKETING & COMMUNICATIONS/Projects/Content approval Test/Content Review sheet Medical Regulatory and Legal Test.xlsx`
    - Table name: `MRL_Review`
 
 ## Environment Configuration
 
-Your `.env` file already has the required configuration:
+Create a `.env` file in your `backend/` directory with the following structure:
 ```env
-AZURE_CLIENT_ID=161407e5-d9c8-47f0-b8d2-a96648337b0c
-AZURE_TENANT_ID=edcbad0a-8f6e-44ac-9175-c8d3ac707996
-AZURE_CLIENT_SECRET=213c576b-54ff-4438-8aa2-e2340a566b58y
-MONGODB_URI=mongodb+srv://fredrikhelander:test123@mondayworkloadtracker.f5691ov.mongodb.net/?retryWrites=true&w=majority&appName=mondayWorkloadTracker
+AZURE_CLIENT_ID=your_azure_client_id_here
+AZURE_TENANT_ID=your_azure_tenant_id_here
+AZURE_CLIENT_SECRET=your_azure_client_secret_here
+MONGODB_URI=your_mongodb_connection_string_here
 ```
+
+**Important**: 
+- Replace the placeholder values with your actual credentials
+- Never commit the `.env` file to version control
+- Keep these credentials secure and rotate them regularly
 
 ## Starting the Content Approval Services
 

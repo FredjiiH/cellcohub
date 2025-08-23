@@ -62,14 +62,20 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
 
   const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
 
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+
   const getAuthHeaders = async () => {
     if (!user) {
       throw new Error('User not authenticated');
     }
 
+    if (isAuthenticating) {
+      throw new Error('Authentication already in progress. Please wait...');
+    }
+
     try {
       const response = await instance.acquireTokenSilent({
-        scopes: ['User.Read', 'Sites.ReadWrite.All', 'Files.ReadWrite.All'],
+        scopes: ['User.Read', 'Sites.Selected', 'Files.ReadWrite'],
         account: user.account
       });
 
@@ -83,8 +89,10 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
       if (error.name === 'InteractionRequiredAuthError') {
         console.log('Consent required for SharePoint permissions, triggering interactive auth...');
         try {
+          setIsAuthenticating(true);
+          
           const response = await instance.acquireTokenPopup({
-            scopes: ['User.Read', 'Sites.ReadWrite.All', 'Files.ReadWrite.All'],
+            scopes: ['User.Read', 'Sites.Selected', 'Files.ReadWrite'],
             account: user.account
           });
 
@@ -93,9 +101,17 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
             'x-user-email': user.email,
             'x-user-name': user.name
           };
-        } catch (popupError) {
+        } catch (popupError: any) {
           console.error('Interactive authentication failed:', popupError);
+          if (popupError.name === 'BrowserAuthError' && popupError.message.includes('interaction_in_progress')) {
+            throw new Error('Authentication popup blocked or already in progress. Please refresh page and try again.');
+          }
+          if (popupError.message?.includes('admin')) {
+            throw new Error('Admin consent required. Please ask your administrator to approve SharePoint permissions for this application.');
+          }
           throw new Error('SharePoint permissions required. Please grant consent when prompted.');
+        } finally {
+          setIsAuthenticating(false);
         }
       }
       console.error('Error getting auth headers:', error);
@@ -138,11 +154,26 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
     if (!user) return;
     try {
       setLoading(true);
+      console.log('🚀 Starting content approval services...');
+      
+      console.log('📝 Getting auth headers...');
       const headers = await getAuthHeaders();
-      await axios.post(`${backendUrl}/api/content-approval/start`, {}, { headers });
+      console.log('✅ Auth headers obtained successfully');
+      
+      console.log('📤 Making POST request to start services...');
+      const response = await axios.post(`${backendUrl}/api/content-approval/start`, {}, { headers });
+      console.log('✅ Start services response:', response.data);
+      
+      console.log('🔄 Refreshing dashboard data...');
       await fetchData();
+      console.log('✅ Services started successfully!');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to start services');
+      console.error('❌ Error in startServices:', err);
+      if (err.name === 'Error' && err.message.includes('Authentication')) {
+        setError('Authentication required. Please refresh the page and grant consent when prompted.');
+      } else {
+        setError(err.response?.data?.error || err.message || 'Failed to start services');
+      }
     } finally {
       setLoading(false);
     }
@@ -204,6 +235,36 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
     }
   };
 
+  const testSharePointPermissions = async () => {
+    if (!user) return;
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('🔍 Testing SharePoint permissions...');
+      
+      const headers = await getAuthHeaders();
+      const response = await axios.post(`${backendUrl}/test/sharepoint-permissions`, {}, { headers });
+      
+      console.log('✅ SharePoint permissions test results:', response.data);
+      
+      // Show detailed results in console and as error message for now
+      const { tests, summary } = response.data;
+      const failedTests = tests.filter((t: any) => t.status === 'failed');
+      
+      if (failedTests.length === 0) {
+        setError(`All tests passed! (${summary.passed}/${summary.total})`);
+      } else {
+        const errorDetails = failedTests.map((t: any) => `${t.name}: ${t.error}`).join('\n');
+        setError(`Tests failed (${summary.failed}/${summary.total}):\n${errorDetails}`);
+      }
+    } catch (err: any) {
+      console.error('❌ SharePoint permissions test failed:', err);
+      setError(err.response?.data?.error || 'Failed to test SharePoint permissions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (user) {
       fetchData();
@@ -243,7 +304,23 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
           color: '#c62828'
         }}>
           <strong>Error:</strong> {error}
-          {error.includes('SharePoint permissions') && (
+          {error.includes('Admin consent required') && (
+            <div style={{ marginTop: '10px', fontSize: '14px' }}>
+              <strong>Admin Consent Required:</strong>
+              <ol style={{ marginTop: '5px', paddingLeft: '20px' }}>
+                <li>Your organization requires administrator approval for SharePoint access</li>
+                <li>Ask your IT administrator to grant consent for these permissions:
+                  <ul style={{ marginLeft: '15px', marginTop: '5px' }}>
+                    <li><code>Sites.Selected</code> (delegated)</li>
+                    <li><code>Files.ReadWrite.All</code> (delegated)</li>
+                  </ul>
+                </li>
+                <li>They can do this in Azure Portal → App registrations → [Your App] → API permissions → "Grant admin consent"</li>
+                <li>Once approved, refresh this page and try again</li>
+              </ol>
+            </div>
+          )}
+          {error.includes('SharePoint permissions') && !error.includes('Admin consent') && (
             <div style={{ marginTop: '10px', fontSize: '14px' }}>
               <strong>What to do:</strong>
               <ol style={{ marginTop: '5px', paddingLeft: '20px' }}>
@@ -251,6 +328,16 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
                 <li>Click "Accept" to grant access to SharePoint files</li>
                 <li>If no popup appears, allow popups for this site</li>
                 <li>Try clicking "Start Services" again after granting consent</li>
+              </ol>
+            </div>
+          )}
+          {error.includes('Authentication already in progress') && (
+            <div style={{ marginTop: '10px', fontSize: '14px' }}>
+              <strong>Authentication Conflict:</strong>
+              <ol style={{ marginTop: '5px', paddingLeft: '20px' }}>
+                <li>Refresh the page to clear the authentication state</li>
+                <li>Wait a moment before trying again</li>
+                <li>Make sure no authentication popups are open in other tabs</li>
               </ol>
             </div>
           )}
@@ -326,8 +413,8 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
 
       {/* Manual Triggers */}
       <div className="manual-triggers" style={{ marginBottom: '30px' }}>
-        <h3>Manual Triggers</h3>
-        <div className="trigger-buttons" style={{ display: 'flex', gap: '10px' }}>
+        <h3>Manual Triggers & Diagnostics</h3>
+        <div className="trigger-buttons" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <button 
             onClick={triggerFileCheck} 
             disabled={loading}
@@ -357,6 +444,21 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
             }}
           >
             Trigger Status Check
+          </button>
+          <button 
+            onClick={testSharePointPermissions} 
+            disabled={loading}
+            style={{ 
+              padding: '8px 16px', 
+              backgroundColor: '#9c27b0', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '4px',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.6 : 1
+            }}
+          >
+            Test SharePoint Permissions
           </button>
         </div>
       </div>

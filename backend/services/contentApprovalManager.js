@@ -12,7 +12,7 @@ class ContentApprovalManager {
         this.isInitialized = false;
     }
 
-    async initialize() {
+    async initialize(accessToken = null) {
         if (this.isInitialized) {
             console.log('Content approval manager already initialized');
             return true;
@@ -21,9 +21,65 @@ class ContentApprovalManager {
         try {
             console.log('Initializing content approval manager...');
 
-            // Initialize individual services
-            await this.fileMonitorService.initialize();
-            await this.statusRouterService.initialize();
+            if (accessToken) {
+                console.log('Setting access token for all GraphClient services...');
+                
+                // Set access token for main services
+                this.excelService.graphClientService.setAccessToken(accessToken);
+                this.sharePointService.graphClientService.setAccessToken(accessToken);
+                
+                // Update the graph clients
+                this.excelService.graphClient = this.excelService.graphClientService.getClient();
+                this.sharePointService.graphClient = this.sharePointService.graphClientService.getClient();
+                
+                // Set access token for services in fileMonitorService
+                this.fileMonitorService.excelService.graphClientService.setAccessToken(accessToken);
+                this.fileMonitorService.sharePointService.graphClientService.setAccessToken(accessToken);
+                this.fileMonitorService.excelService.graphClient = this.fileMonitorService.excelService.graphClientService.getClient();
+                this.fileMonitorService.sharePointService.graphClient = this.fileMonitorService.sharePointService.graphClientService.getClient();
+                
+                // Set access token for services in statusRouterService
+                this.statusRouterService.excelService.graphClientService.setAccessToken(accessToken);
+                this.statusRouterService.sharePointService.graphClientService.setAccessToken(accessToken);
+                this.statusRouterService.excelService.graphClient = this.statusRouterService.excelService.graphClientService.getClient();
+                this.statusRouterService.sharePointService.graphClient = this.statusRouterService.sharePointService.graphClientService.getClient();
+            }
+
+            console.log('Initializing Excel service...');
+            try {
+                await this.excelService.initialize();
+                console.log('✅ Excel service initialized successfully');
+            } catch (error) {
+                console.error('❌ Excel service initialization failed:', error.message);
+                throw new Error(`Excel service failed: ${error.message}`);
+            }
+            
+            console.log('Initializing SharePoint service...');
+            try {
+                await this.sharePointService.initialize();
+                console.log('✅ SharePoint service initialized successfully');
+            } catch (error) {
+                console.error('❌ SharePoint service initialization failed:', error.message);
+                throw new Error(`SharePoint service failed: ${error.message}`);
+            }
+            
+            console.log('Initializing file monitor service...');
+            try {
+                await this.fileMonitorService.initialize();
+                console.log('✅ File monitor service initialized successfully');
+            } catch (error) {
+                console.error('❌ File monitor service initialization failed:', error.message);
+                throw new Error(`File monitor service failed: ${error.message}`);
+            }
+            
+            console.log('Initializing status router service...');
+            try {
+                await this.statusRouterService.initialize();
+                console.log('✅ Status router service initialized successfully');
+            } catch (error) {
+                console.error('❌ Status router service initialization failed:', error.message);
+                throw new Error(`Status router service failed: ${error.message}`);
+            }
 
             this.isInitialized = true;
             console.log('Content approval manager initialized successfully');
@@ -31,6 +87,7 @@ class ContentApprovalManager {
 
         } catch (error) {
             console.error('Failed to initialize content approval manager:', error);
+            console.error('Error stack:', error.stack);
             throw error;
         }
     }

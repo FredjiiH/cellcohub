@@ -38,9 +38,17 @@ const jwksClientInstance = jwksClient({
 // Middleware to validate Azure AD tokens
 const validateToken = async (req, res, next) => {
   try {
+    console.log(`🔐 Auth check for ${req.method} ${req.path}`);
+    console.log('Headers:', {
+      authorization: req.headers.authorization ? `Bearer ${req.headers.authorization.substring(7, 20)}...` : 'MISSING',
+      'x-user-email': req.headers['x-user-email'],
+      'x-user-name': req.headers['x-user-name']
+    });
+    
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('❌ Invalid authorization header format');
       return res.status(401).json({ error: 'No valid authorization header' });
     }
 
@@ -54,12 +62,14 @@ const validateToken = async (req, res, next) => {
         email: req.headers['x-user-email'] || 'unknown@cellcolabs.com',
         name: req.headers['x-user-name'] || 'Unknown User'
       };
+      console.log('✅ Auth passed, proceeding to endpoint');
       next();
     } else {
+      console.log('❌ Empty or invalid token');
       return res.status(401).json({ error: 'Invalid token' });
     }
   } catch (error) {
-    console.error('Token validation error:', error);
+    console.error('❌ Token validation error:', error);
     return res.status(401).json({ error: 'Token validation failed' });
   }
 };

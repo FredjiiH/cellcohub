@@ -3,7 +3,7 @@ const GraphClientService = require('./graphClient');
 class SharePointService {
     constructor() {
         this.graphClientService = new GraphClientService();
-        this.graphClient = this.graphClientService.getClient();
+        this.graphClient = null; // Will be initialized when access token is set
         
         this.siteId = null;
         this.driveId = null;
@@ -36,14 +36,14 @@ class SharePointService {
     async resolveFolderIds() {
         try {
             // Ready to Review folder
-            const readyToReviewPath = '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Ready to Review';
+            const readyToReviewPath = '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval Test/Ready to Review Test';
             const readyFolder = await this.graphClient
                 .api(`/sites/${this.siteId}/drive/root:${readyToReviewPath}`)
                 .get();
             this.readyToReviewFolderId = readyFolder.id;
 
             // Final organization folder (create if doesn't exist)
-            const finalOrgPath = '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Final organization';
+            const finalOrgPath = '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval Test/Final organization Test';
             try {
                 const finalFolder = await this.graphClient
                     .api(`/sites/${this.siteId}/drive/root:${finalOrgPath}`)
@@ -52,7 +52,7 @@ class SharePointService {
             } catch (error) {
                 if (error.code === 'itemNotFound') {
                     console.log('Final organization folder not found, creating...');
-                    const parentPath = '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval';
+                    const parentPath = '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval Test';
                     const parentFolder = await this.graphClient
                         .api(`/sites/${this.siteId}/drive/root:${parentPath}`)
                         .get();
@@ -60,7 +60,7 @@ class SharePointService {
                     const newFolder = await this.graphClient
                         .api(`/sites/${this.siteId}/drive/items/${parentFolder.id}/children`)
                         .post({
-                            name: 'Final organization',
+                            name: 'Final organization Test',
                             folder: {},
                             '@microsoft.graph.conflictBehavior': 'rename'
                         });

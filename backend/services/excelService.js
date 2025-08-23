@@ -3,7 +3,7 @@ const GraphClientService = require('./graphClient');
 class ExcelService {
     constructor() {
         this.graphClientService = new GraphClientService();
-        this.graphClient = this.graphClientService.getClient();
+        this.graphClient = null; // Will be initialized when access token is set
         
         // SharePoint site and file configuration
         this.siteId = null; // Will be resolved from site URL
@@ -37,14 +37,14 @@ class ExcelService {
     async resolveFileIds() {
         try {
             // Path to Step 1 Excel file
-            const step1Path = '/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Content_Review_step1.xlsx';
+            const step1Path = '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval Test/Content_Review_step1 Test.xlsx';
             const step1File = await this.graphClient
                 .api(`/sites/${this.siteId}/drive/root:${step1Path}`)
                 .get();
             this.step1FileId = step1File.id;
 
             // Path to MRL Excel file
-            const mrlPath = '/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Content Review sheet Medical Regulatory and Legal.xlsx';
+            const mrlPath = '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval Test/Content Review sheet Medical Regulatory and Legal Test.xlsx';
             const mrlFile = await this.graphClient
                 .api(`/sites/${this.siteId}/drive/root:${mrlPath}`)
                 .get();
