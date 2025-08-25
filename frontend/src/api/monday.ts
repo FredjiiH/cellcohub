@@ -5,16 +5,6 @@ const API_TOKEN = process.env.REACT_APP_MONDAY_API_TOKEN;
 const BOARD_ID = process.env.REACT_APP_MONDAY_BOARD_ID || '2038576678';
 const API_URL = 'https://api.monday.com/v2';
 
-// Debug environment variables
-console.log('=== MONDAY.COM API DEBUG ===');
-console.log('Environment variables:', {
-  REACT_APP_MONDAY_API_TOKEN: process.env.REACT_APP_MONDAY_API_TOKEN ? 'SET' : 'NOT SET',
-  REACT_APP_MONDAY_BOARD_ID: process.env.REACT_APP_MONDAY_BOARD_ID || 'NOT SET'
-});
-console.log('API_TOKEN available:', !!API_TOKEN);
-console.log('BOARD_ID:', BOARD_ID);
-console.log('API_URL:', API_URL);
-console.log('================================');
 
 // Validate that API token is available
 if (!API_TOKEN) {
@@ -65,13 +55,10 @@ export async function fetchBoardColumns(): Promise<Column[]> {
   `;
 
   try {
-    console.log('Making API call to Monday.com with headers:', headers);
     const response = await axios.post(API_URL, { query }, { headers });
-    console.log('API response received:', response.status);
     return response.data.data.boards[0].columns;
   } catch (error: any) {
     console.error('Error fetching board columns:', error);
-    console.error('Error details:', error.response?.data || error.message);
     return [];
   }
 }
@@ -108,14 +95,10 @@ export async function fetchBoardItems(): Promise<any[]> {
   `;
 
   try {
-    console.log('Making API call to fetch board items with query:', query);
     const response = await axios.post(API_URL, { query }, { headers });
-    console.log('Board items API response received:', response.status);
     return response.data.data.boards[0].items_page.items;
   } catch (error: any) {
     console.error('Error fetching board items:', error);
-    console.error('Error response:', error.response?.data);
-    console.error('Error status:', error.response?.status);
     return [];
   }
 }
@@ -171,21 +154,17 @@ export async function fetchTasks(): Promise<Task[]> {
     // fallback: no group validation
   }
 
-  const query = `
-    query {
-      boards(ids: ${BOARD_ID}) {
-        items_page {
-          items {
-            id
-            name
-            group { id }
-            column_values {
-              id
-              text
-              value
-              type
-            }
-            subitems {
+  // Fetch all items with pagination
+  let allItems: any[] = [];
+  let cursor: string | null = null;
+  
+  while (true) {
+    const query: string = `
+      query {
+        boards(ids: ${BOARD_ID}) {
+          items_page(limit: 100${cursor ? `, cursor: "${cursor}"` : ''}) {
+            cursor
+            items {
               id
               name
               group { id }
@@ -195,21 +174,41 @@ export async function fetchTasks(): Promise<Task[]> {
                 value
                 type
               }
+              subitems {
+                id
+                name
+                group { id }
+                column_values {
+                  id
+                  text
+                  value
+                  type
+                }
+              }
             }
           }
         }
       }
-    }
-  `;
+    `;
+
+    const response: any = await axios.post(API_URL, { query }, { headers });
+    const page: any = response.data.data.boards[0].items_page;
+    const items: any[] = page.items || [];
+    
+    allItems.push(...items);
+    cursor = page.cursor;
+    
+    if (!cursor || items.length === 0) break;
+  }
 
   try {
-    const response = await axios.post(API_URL, { query }, { headers });
-    const items = response.data.data.boards[0].items_page.items;
+    const items = allItems;
     const tasks: Task[] = [];
 
     items.forEach((item: any) => {
       // Process subitems first
       const subitems = Array.isArray(item.subitems) ? item.subitems : [];
+      
       subitems.forEach((subitem: any) => {
         let effort = 0;
         let assignees: string[] = [];
@@ -234,13 +233,10 @@ export async function fetchTasks(): Promise<Task[]> {
           }
         });
         
-        let groupId = subitem.group?.id || item.group?.id || '';
-        if (!validGroupIds.includes(groupId)) {
-          groupId = item.group?.id || '';
-        }
+        // Subitems inherit parent item's group ID
+        let groupId = item.group?.id || '';
         
         if (assignees.length > 0) {
-          // Create a separate task entry for each assignee
           assignees.forEach(assignee => {
             tasks.push({
               id: `${subitem.id}-${assignee}`,
@@ -255,7 +251,6 @@ export async function fetchTasks(): Promise<Task[]> {
             });
           });
         } else {
-          // Unassigned subitem
           tasks.push({
             id: subitem.id,
             name: subitem.name,
@@ -270,7 +265,7 @@ export async function fetchTasks(): Promise<Task[]> {
         }
       });
       
-      // Process main item if no subitems or if subitems don't have effort/assignees
+      // Process main item if no subitems
       if (subitems.length === 0) {
         let effort = 0;
         let assignees: string[] = [];
@@ -296,8 +291,9 @@ export async function fetchTasks(): Promise<Task[]> {
         });
         
         if (assignees.length > 0) {
-          // Create a separate task entry for each assignee
           assignees.forEach(assignee => {
+            const mainItemGroupId = item.group?.id || '';
+            
             tasks.push({
               id: `${item.id}-${assignee}`,
               name: item.name,
@@ -306,11 +302,10 @@ export async function fetchTasks(): Promise<Task[]> {
               status,
               dueDate,
               isSubitem: false,
-              groupId: item.group?.id || '',
+              groupId: mainItemGroupId,
             });
           });
         } else {
-          // Unassigned main item
           tasks.push({
             id: item.id,
             name: item.name,
@@ -325,8 +320,6 @@ export async function fetchTasks(): Promise<Task[]> {
       }
     });
     
-    // Debug: print all extracted tasks
-    console.log('Extracted tasks:', JSON.stringify(tasks, null, 2));
     return tasks;
   } catch (error) {
     console.error('Error fetching tasks:', error);
@@ -346,13 +339,10 @@ export async function fetchGroups(): Promise<Group[]> {
     }
   `;
   try {
-    console.log('Making API call to fetch groups with headers:', headers);
     const response = await axios.post(API_URL, { query }, { headers });
-    console.log('Groups API response received:', response.status);
     return response.data.data.boards[0].groups;
   } catch (error: any) {
     console.error('Error fetching groups:', error);
-    console.error('Error details:', error.response?.data || error.message);
     return [];
   }
 } 

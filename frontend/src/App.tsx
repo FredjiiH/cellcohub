@@ -18,16 +18,6 @@ import './App.css';
 // Initialize MSAL
 const msalInstance = new PublicClientApplication(msalConfig);
 
-// Check Environment Access
-console.log('=== CELLCO HUB DEBUG INFO ===');
-console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('REACT_APP_MONDAY_API_TOKEN:', process.env.REACT_APP_MONDAY_API_TOKEN ? 'SET' : 'NOT SET');
-console.log('REACT_APP_MONDAY_BOARD_ID:', process.env.REACT_APP_MONDAY_BOARD_ID);
-console.log('REACT_APP_BACKEND_URL:', process.env.REACT_APP_BACKEND_URL);
-console.log('REACT_APP_AZURE_CLIENT_ID:', process.env.REACT_APP_AZURE_CLIENT_ID ? 'SET' : 'NOT SET');
-console.log('REACT_APP_AZURE_TENANT_ID:', process.env.REACT_APP_AZURE_TENANT_ID);
-console.log('Current URL:', window.location.href);
-console.log('================================');
 
 // Trigger deployment - small change to force rebuild
 
@@ -196,7 +186,6 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
         ]);
       
       console.log('Manual refresh - All data fetched successfully');
-      console.log('Groups:', groupsData);
       console.log('Tasks:', tasksData);
       console.log('Team:', teamData);
       
@@ -271,8 +260,7 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
         ]);
         
         console.log('All data fetched successfully');
-        console.log('Groups:', groupsData);
-        console.log('Tasks:', tasksData);
+          console.log('Tasks:', tasksData);
         console.log('Team:', teamData);
         
         setGroups(groupsData);
@@ -302,7 +290,6 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
     const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
     console.log('=== FETCHING OVERRIDES ===');
     console.log('Backend URL for overrides:', backendUrl);
-    console.log('Selected group:', selectedGroup);
     console.log('User:', user.email);
     
     // Get access token for backend
@@ -337,9 +324,12 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
 
   // Workload calculation with main/subitem logic
   useEffect(() => {
+    
     let filteredTasks = tasks;
     if (selectedGroup) {
       filteredTasks = tasks.filter((task: any) => task.groupId === selectedGroup);
+      
+      const fredrikTasks = filteredTasks.filter((task: any) => task.assignee === 'Fredrik Helander');
     }
     // Remove main items that have subitems in the same group
     const mainItemIdsWithSubitems = new Set(
@@ -862,7 +852,9 @@ function AppContent({ user, setUser }: { user: User | null; setUser: (user: User
                     id="group-select"
                     className="custom-dropdown"
                     value={selectedGroup}
-                    onChange={e => setSelectedGroup(e.target.value)}
+                    onChange={e => {
+                      setSelectedGroup(e.target.value);
+                    }}
                     style={{ marginLeft: '10px' }}
                   >
                     {groups.map(group => (
