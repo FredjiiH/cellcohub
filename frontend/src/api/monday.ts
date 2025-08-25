@@ -21,6 +21,7 @@ export interface Task {
   id: string;
   name: string;
   effort: number; // in hours
+  effortProvided: boolean; // true if effort was explicitly set (even if 0), false if missing
   assignee: string;
   status: string;
   dueDate: string;
@@ -211,14 +212,20 @@ export async function fetchTasks(): Promise<Task[]> {
       
       subitems.forEach((subitem: any) => {
         let effort = 0;
+        let effortProvided = false;
         let assignees: string[] = [];
         let status = '';
         let dueDate = '';
         
         subitem.column_values.forEach((col: any) => {
-          if (col.id === 'numeric_mksezpbh' && col.text) {
-            const val = parseFloat(col.text);
-            if (!isNaN(val)) effort = val;
+          if (col.id === 'numeric_mksezpbh') {
+            if (col.text !== null && col.text !== undefined && col.text !== '') {
+              const val = parseFloat(col.text);
+              if (!isNaN(val)) {
+                effort = val;
+                effortProvided = true;
+              }
+            }
           }
           if (col.id === 'person') {
             if (col.text && col.text.trim()) {
@@ -242,6 +249,7 @@ export async function fetchTasks(): Promise<Task[]> {
               id: `${subitem.id}-${assignee}`,
               name: subitem.name,
               effort,
+              effortProvided,
               assignee,
               status,
               dueDate,
@@ -255,6 +263,7 @@ export async function fetchTasks(): Promise<Task[]> {
             id: subitem.id,
             name: subitem.name,
             effort,
+            effortProvided,
             assignee: '',
             status,
             dueDate,
@@ -268,14 +277,20 @@ export async function fetchTasks(): Promise<Task[]> {
       // Process main item if no subitems
       if (subitems.length === 0) {
         let effort = 0;
+        let effortProvided = false;
         let assignees: string[] = [];
         let status = '';
         let dueDate = '';
         
         item.column_values.forEach((col: any) => {
-          if (col.id === 'numeric_mksee97s' && col.text) {
-            const val = parseFloat(col.text);
-            if (!isNaN(val)) effort = val;
+          if (col.id === 'numeric_mksee97s') {
+            if (col.text !== null && col.text !== undefined && col.text !== '') {
+              const val = parseFloat(col.text);
+              if (!isNaN(val)) {
+                effort = val;
+                effortProvided = true;
+              }
+            }
           }
           if (col.id === 'person') {
             if (col.text && col.text.trim()) {
@@ -298,6 +313,7 @@ export async function fetchTasks(): Promise<Task[]> {
               id: `${item.id}-${assignee}`,
               name: item.name,
               effort,
+              effortProvided,
               assignee,
               status,
               dueDate,
@@ -310,6 +326,7 @@ export async function fetchTasks(): Promise<Task[]> {
             id: item.id,
             name: item.name,
             effort,
+            effortProvided,
             assignee: '',
             status,
             dueDate,

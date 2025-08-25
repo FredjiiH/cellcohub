@@ -23,31 +23,31 @@ const UnassignedTasksModule: React.FC<UnassignedTasksModuleProps> = ({ tasks, se
       [category]: !prev[category]
     }));
   };
-  // Filter tasks for the selected group that are unassigned or have no effort
+  // Filter tasks for the selected group that are unassigned or have missing effort
   const unassignedTasks = tasks.filter(task => {
     const isInSelectedGroup = !selectedGroup || task.groupId === selectedGroup;
     const isUnassigned = !task.assignee || task.assignee.trim() === '';
-    const hasNoEffort = task.effort === 0 || isNaN(task.effort);
+    const hasMissingEffort = !task.effortProvided; // Only flag if effort wasn't provided at all
     
-    return isInSelectedGroup && (isUnassigned || hasNoEffort);
+    return isInSelectedGroup && (isUnassigned || hasMissingEffort);
   });
 
   // Group tasks by issue type (mutually exclusive categories)
   const tasksByIssue = {
-    // Critical: Both unassigned AND no effort (highest priority)
+    // Critical: Both unassigned AND missing effort (highest priority)
     both: unassignedTasks.filter(task => 
       (!task.assignee || task.assignee.trim() === '') && 
-      (task.effort === 0 || isNaN(task.effort))
+      !task.effortProvided
     ),
     // Unassigned only (has effort but no assignee)
     unassigned: unassignedTasks.filter(task => 
       (!task.assignee || task.assignee.trim() === '') && 
-      task.effort > 0 && !isNaN(task.effort)
+      task.effortProvided
     ),
-    // No effort only (has assignee but no effort)
+    // Missing effort only (has assignee but no effort provided)
     noEffort: unassignedTasks.filter(task => 
       (task.assignee && task.assignee.trim() !== '') && 
-      (task.effort === 0 || isNaN(task.effort))
+      !task.effortProvided
     )
   };
 
@@ -68,7 +68,7 @@ const UnassignedTasksModule: React.FC<UnassignedTasksModuleProps> = ({ tasks, se
           ✅ All Tasks Are Properly Configured
         </h3>
         <p style={{ color: '#6c757d', margin: 0 }}>
-          All tasks in this sprint have been assigned and have effort estimates.
+          All tasks in this sprint have been assigned and have effort values provided (including intentional 0-hour tasks).
         </p>
       </div>
     );
@@ -89,7 +89,7 @@ const UnassignedTasksModule: React.FC<UnassignedTasksModuleProps> = ({ tasks, se
         alignItems: 'center',
         gap: '8px'
       }}>
-                 ⚠️ Tasks Missing Assignees or Time Estimates ({totalUniqueTasks})
+                 ⚠️ Tasks Missing Assignees or Effort Values ({totalUniqueTasks})
       </h3>
       
       <div style={{ marginBottom: '15px' }}>
@@ -129,7 +129,7 @@ const UnassignedTasksModule: React.FC<UnassignedTasksModuleProps> = ({ tasks, se
                   {task.isSubitem && (
                     <span style={{ color: '#6c757d', fontSize: '12px' }}> (subtask)</span>
                   )}
-                  {task.effort > 0 && (
+                  {task.effortProvided && (
                     <span style={{ color: '#28a745' }}> - {task.effort}h effort</span>
                   )}
                 </li>
@@ -153,7 +153,7 @@ const UnassignedTasksModule: React.FC<UnassignedTasksModuleProps> = ({ tasks, se
             }}
             onClick={() => toggleCategory('noEffort')}
           >
-            🟡 Tasks Without Effort Estimates ({tasksByIssue.noEffort.length})
+            🟡 Tasks Missing Effort Values ({tasksByIssue.noEffort.length})
             <span style={{ fontSize: '12px', fontWeight: 'normal' }}>
               {expandedCategories.noEffort ? '▼' : '▶'}
             </span>
@@ -194,7 +194,7 @@ const UnassignedTasksModule: React.FC<UnassignedTasksModuleProps> = ({ tasks, se
             }}
             onClick={() => toggleCategory('both')}
           >
-            🔴 Critical: Unassigned & No Effort ({tasksByIssue.both.length})
+            🔴 Critical: Unassigned & Missing Effort ({tasksByIssue.both.length})
             <span style={{ fontSize: '12px', fontWeight: 'normal' }}>
               {expandedCategories.both ? '▼' : '▶'}
             </span>
@@ -226,7 +226,7 @@ const UnassignedTasksModule: React.FC<UnassignedTasksModuleProps> = ({ tasks, se
         fontSize: '12px',
         color: '#495057'
       }}>
-        <strong>Action Required:</strong> Please assign team members and add effort estimates to these tasks in Monday.com to ensure accurate workload tracking.
+        <strong>Action Required:</strong> Please assign team members and provide effort values (including 0 for non-work tasks) to these tasks in Monday.com to ensure accurate workload tracking.
       </div>
     </div>
   );
