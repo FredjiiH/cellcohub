@@ -64,7 +64,18 @@ async function connectToMongo() {
   }
 }
 
-app.use(cors());
+// Configure CORS to allow requests from the frontend
+app.use(cors({
+  origin: [
+    'http://localhost:3000', // Local development
+    'https://cellcohub.vercel.app', // Production frontend
+    'https://cellcohub-git-main-fredjiihs-projects.vercel.app', // Vercel preview deployments
+    'https://cellcohub-git-develop-fredjiihs-projects.vercel.app' // Develop branch deployments
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(bodyParser.json());
 
 // Add logging middleware
