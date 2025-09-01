@@ -86,10 +86,11 @@ class SharePointService {
         try {
             const response = await this.graphClient
                 .api(`/sites/${this.siteId}/drive/items/${this.readyToReviewFolderId}/children`)
-                .filter('file ne null') // Only get files, not folders
                 .get();
 
-            return response.value || [];
+            // Filter to only return files (not folders) client-side
+            const allItems = response.value || [];
+            return allItems.filter(item => item.file && !item.folder);
         } catch (error) {
             console.error('Error getting files from Ready to Review folder:', error);
             throw error;
