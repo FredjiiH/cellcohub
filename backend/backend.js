@@ -716,6 +716,7 @@ app.post('/api/content-approval/restart', async (req, res) => {
 
 // Manual triggers
 app.post('/api/content-approval/trigger/file-check', async (req, res) => {
+  console.log('🔥🔥🔥 FILE-CHECK TRIGGER ENDPOINT REACHED 🔥🔥🔥');
   console.log('🔥 FILE-CHECK TRIGGER STARTED');
   console.log('🔥 Timestamp:', new Date().toISOString());
   
