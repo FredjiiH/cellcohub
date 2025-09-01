@@ -696,9 +696,21 @@ app.post('/api/content-approval/restart', async (req, res) => {
 // Manual triggers
 app.post('/api/content-approval/trigger/file-check', async (req, res) => {
   try {
-    if (!contentApprovalManager) {
-      return res.status(503).json({ error: 'Content approval service not initialized' });
+    // Extract access token from Authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'No valid authorization header' });
     }
+    const accessToken = authHeader.substring(7);
+    
+    // Initialize manager if needed or reinitialize with current token
+    if (!contentApprovalManager) {
+      console.log('Creating ContentApprovalManager for file-check trigger');
+      contentApprovalManager = new ContentApprovalManager();
+    }
+    
+    // Always reinitialize with the current user's token
+    await contentApprovalManager.initialize(accessToken);
     
     await contentApprovalManager.triggerFileCheck();
     res.json({ message: 'File check triggered successfully' });
@@ -710,9 +722,21 @@ app.post('/api/content-approval/trigger/file-check', async (req, res) => {
 
 app.post('/api/content-approval/trigger/status-check', async (req, res) => {
   try {
-    if (!contentApprovalManager) {
-      return res.status(503).json({ error: 'Content approval service not initialized' });
+    // Extract access token from Authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'No valid authorization header' });
     }
+    const accessToken = authHeader.substring(7);
+    
+    // Initialize manager if needed or reinitialize with current token
+    if (!contentApprovalManager) {
+      console.log('Creating ContentApprovalManager for status-check trigger');
+      contentApprovalManager = new ContentApprovalManager();
+    }
+    
+    // Always reinitialize with the current user's token
+    await contentApprovalManager.initialize(accessToken);
     
     await contentApprovalManager.triggerStatusCheck();
     res.json({ message: 'Status check triggered successfully' });
@@ -725,9 +749,21 @@ app.post('/api/content-approval/trigger/status-check', async (req, res) => {
 // Data access endpoints
 app.get('/api/content-approval/step1-data', async (req, res) => {
   try {
-    if (!contentApprovalManager) {
-      return res.status(503).json({ error: 'Content approval service not initialized' });
+    // Extract access token from Authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'No valid authorization header' });
     }
+    const accessToken = authHeader.substring(7);
+    
+    // Initialize manager if needed or reinitialize with current token
+    if (!contentApprovalManager) {
+      console.log('Creating ContentApprovalManager for step1-data');
+      contentApprovalManager = new ContentApprovalManager();
+    }
+    
+    // Always reinitialize with the current user's token
+    await contentApprovalManager.initialize(accessToken);
     
     const data = await contentApprovalManager.getStep1Data();
     res.json(data);
@@ -739,9 +775,21 @@ app.get('/api/content-approval/step1-data', async (req, res) => {
 
 app.get('/api/content-approval/mrl-data', async (req, res) => {
   try {
-    if (!contentApprovalManager) {
-      return res.status(503).json({ error: 'Content approval service not initialized' });
+    // Extract access token from Authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'No valid authorization header' });
     }
+    const accessToken = authHeader.substring(7);
+    
+    // Initialize manager if needed or reinitialize with current token
+    if (!contentApprovalManager) {
+      console.log('Creating ContentApprovalManager for mrl-data');
+      contentApprovalManager = new ContentApprovalManager();
+    }
+    
+    // Always reinitialize with the current user's token
+    await contentApprovalManager.initialize(accessToken);
     
     const data = await contentApprovalManager.getMRLData();
     res.json(data);
@@ -753,9 +801,21 @@ app.get('/api/content-approval/mrl-data', async (req, res) => {
 
 app.get('/api/content-approval/sharepoint-files', async (req, res) => {
   try {
-    if (!contentApprovalManager) {
-      return res.status(503).json({ error: 'Content approval service not initialized' });
+    // Extract access token from Authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'No valid authorization header' });
     }
+    const accessToken = authHeader.substring(7);
+    
+    // Initialize manager if needed or reinitialize with current token
+    if (!contentApprovalManager) {
+      console.log('Creating ContentApprovalManager for sharepoint-files');
+      contentApprovalManager = new ContentApprovalManager();
+    }
+    
+    // Always reinitialize with the current user's token
+    await contentApprovalManager.initialize(accessToken);
     
     const files = await contentApprovalManager.getReadyToReviewFiles();
     res.json(files);
@@ -768,9 +828,21 @@ app.get('/api/content-approval/sharepoint-files', async (req, res) => {
 // Logging and monitoring endpoints
 app.get('/api/content-approval/logs/processing', async (req, res) => {
   try {
-    if (!contentApprovalManager) {
-      return res.json([]); // Return empty array when not initialized
+    // Extract access token from Authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'No valid authorization header' });
     }
+    const accessToken = authHeader.substring(7);
+    
+    // Initialize manager if needed or reinitialize with current token
+    if (!contentApprovalManager) {
+      console.log('Creating ContentApprovalManager for processing logs');
+      contentApprovalManager = new ContentApprovalManager();
+    }
+    
+    // Always reinitialize with the current user's token
+    await contentApprovalManager.initialize(accessToken);
     
     const limit = parseInt(req.query.limit) || 100;
     const logs = await contentApprovalManager.getProcessingLogs(limit);
@@ -783,9 +855,21 @@ app.get('/api/content-approval/logs/processing', async (req, res) => {
 
 app.get('/api/content-approval/logs/errors', async (req, res) => {
   try {
-    if (!contentApprovalManager) {
-      return res.status(503).json({ error: 'Content approval service not initialized' });
+    // Extract access token from Authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'No valid authorization header' });
     }
+    const accessToken = authHeader.substring(7);
+    
+    // Initialize manager if needed or reinitialize with current token
+    if (!contentApprovalManager) {
+      console.log('Creating ContentApprovalManager for error logs');
+      contentApprovalManager = new ContentApprovalManager();
+    }
+    
+    // Always reinitialize with the current user's token
+    await contentApprovalManager.initialize(accessToken);
     
     const limit = parseInt(req.query.limit) || 50;
     const logs = await contentApprovalManager.getErrorLogs(limit);
@@ -798,9 +882,21 @@ app.get('/api/content-approval/logs/errors', async (req, res) => {
 
 app.get('/api/content-approval/stats', async (req, res) => {
   try {
-    if (!contentApprovalManager) {
-      return res.json([]); // Return empty array when not initialized
+    // Extract access token from Authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'No valid authorization header' });
     }
+    const accessToken = authHeader.substring(7);
+    
+    // Initialize manager if needed or reinitialize with current token
+    if (!contentApprovalManager) {
+      console.log('Creating ContentApprovalManager for stats');
+      contentApprovalManager = new ContentApprovalManager();
+    }
+    
+    // Always reinitialize with the current user's token
+    await contentApprovalManager.initialize(accessToken);
     
     const stats = await contentApprovalManager.getProcessingStats();
     res.json(stats);
