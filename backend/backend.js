@@ -514,7 +514,7 @@ app.post('/test/sharepoint-permissions', async (req, res) => {
     if (driveId) {
       try {
         console.log('Testing production folder access...');
-        const prodFolderPath = '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval';
+        const prodFolderPath = '/General/MARKETING & COMMUNICATIONS/Projects/Content approval';
         const prodFolder = await graphClient.api(`/drives/${driveId}/root:${prodFolderPath}`).get();
         tests.push({
           name: 'Production Folder Access',
@@ -535,8 +535,8 @@ app.post('/test/sharepoint-permissions', async (req, res) => {
     // Test 4: Excel file access
     if (driveId) {
       const excelFiles = [
-        '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Content_Review_step1.xlsx',
-        '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Content Review sheet Medical Compliance and Legal.xlsx'
+        '/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Content_Review_step1.xlsx',
+        '/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Content Review sheet Medical Compliance and Legal.xlsx'
       ];
 
       for (const filePath of excelFiles) {
