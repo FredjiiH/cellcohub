@@ -74,39 +74,117 @@ class StatusRouterService {
 
     async processStatusChanges() {
         try {
-            console.log('Processing status changes in Step1_Review table...');
+            console.log('\n🔄 ===== STATUS ROUTER SERVICE - PROCESSING CYCLE =====');
+            console.log(`📅 Started at: ${new Date().toISOString()}`);
             
             // Get all rows from Step1_Review table
             const step1Rows = await this.excelService.getAllTableRows('Step1_Review');
-            console.log(`Found ${step1Rows.length} rows in Step1_Review table`);
+            console.log(`📋 Found ${step1Rows.length} total rows in Step1_Review table`);
 
             let processedCount = 0;
+            let skippedCount = 0;
+            let errorCount = 0;
+            const processedFiles = [];
+            const skippedFiles = [];
+            const errorFiles = [];
+
+            // DEBUG: Force show all rows regardless of enhanced logging working
+            console.log('\n🔍 FORCING DEBUG OUTPUT FOR ALL ROWS:');
+            for (const [index, row] of step1Rows.entries()) {
+                const fileId = row.values[0][0];
+                const fileName = row.values[0][1] || 'Unknown';
+                const statusColumnIndex = this.excelService.getColumnIndex('Step1_Review', 'Status');
+                const status = row.values[0][statusColumnIndex];
+                const routedOnIndex = this.excelService.getColumnIndex('Step1_Review', 'Routed On');
+                const routedOn = row.values[0][routedOnIndex];
+                
+                console.log(`🔍 ROW ${index + 1} ANALYSIS:`);
+                console.log(`   FileID: "${fileId}"`);
+                console.log(`   FileName: "${fileName}"`);
+                console.log(`   Status: "${status}" (column index: ${statusColumnIndex})`);
+                console.log(`   RoutedOn: "${routedOn}" (column index: ${routedOnIndex})`);
+                
+                // Check what would trigger
+                const triggerStatuses = ['Need MCL Review', 'Needs MCL Review', 'Needs Med/Reg/Leg Review', 'Needs MRL Review', 'Fast track'];
+                const wouldTrigger = triggerStatuses.includes(status);
+                const alreadyRouted = routedOn && routedOn.trim() !== '';
+                
+                console.log(`   Would trigger: ${wouldTrigger} (looking for: ${triggerStatuses.join(', ')})`);
+                console.log(`   Already routed: ${alreadyRouted}`);
+                console.log(`   Should process: ${wouldTrigger && !alreadyRouted}`);
+            }
+            console.log('🔍 END DEBUG OUTPUT\n');
 
             for (const [index, row] of step1Rows.entries()) {
                 try {
                     const fileId = row.values[0][0]; // FileID in first column
+                    const fileName = row.values[0][1] || 'Unknown'; // File Name
                     const status = row.values[0][this.excelService.getColumnIndex('Step1_Review', 'Status')];
+                    const routedOnIndex = this.excelService.getColumnIndex('Step1_Review', 'Routed On');
+                    const routedOn = row.values[0][routedOnIndex];
+                    
+                    console.log(`\n📄 Row ${index + 1}: FileID="${fileId}", Name="${fileName}", Status="${status}"`);
                     
                     // Skip if no FileID or status
                     if (!fileId || !status) {
+                        console.log(`⚠️  Skipping row ${index + 1}: Missing FileID or Status`);
+                        skippedCount++;
+                        skippedFiles.push({ index: index + 1, reason: 'Missing FileID or Status', fileName });
                         continue;
+                    }
+
+                    // Log current routing status
+                    if (routedOn && routedOn.trim() !== '') {
+                        console.log(`ℹ️  Already processed (Routed On: ${routedOn})`);
                     }
 
                     const processed = await this.processRowByStatus(fileId, status, row, index);
                     if (processed) {
                         processedCount++;
+                        processedFiles.push({ fileId, fileName, status, action: 'processed' });
+                        console.log(`✅ Successfully processed FileID: ${fileId}`);
+                    } else {
+                        skippedCount++;
+                        skippedFiles.push({ fileId, fileName, status, reason: 'No action needed or already processed' });
+                        console.log(`⏭️  Skipped FileID: ${fileId} (no action needed)`);
                     }
 
                 } catch (error) {
-                    console.error(`Error processing row ${index}:`, error);
-                    await this.logError('ROW_PROCESSING', error.message, row.values[0][0]);
+                    console.error(`❌ Error processing row ${index + 1}:`, error.message);
+                    errorCount++;
+                    const fileId = row.values[0][0];
+                    const fileName = row.values[0][1] || 'Unknown';
+                    errorFiles.push({ fileId, fileName, error: error.message });
+                    await this.logError('ROW_PROCESSING', error.message, fileId);
                 }
             }
 
-            console.log(`Processed ${processedCount} status changes`);
+            // Summary logging
+            console.log('\n📊 ===== PROCESSING SUMMARY =====');
+            console.log(`✅ Processed: ${processedCount} files`);
+            console.log(`⏭️  Skipped: ${skippedCount} files`);
+            console.log(`❌ Errors: ${errorCount} files`);
+            console.log(`📅 Completed at: ${new Date().toISOString()}`);
+            
+            if (processedFiles.length > 0) {
+                console.log('\n🎯 FILES PROCESSED:');
+                processedFiles.forEach(f => console.log(`   • ${f.fileId} - "${f.fileName}" (${f.status})`));
+            }
+            
+            if (skippedFiles.length > 0) {
+                console.log('\n⏭️  FILES SKIPPED:');
+                skippedFiles.forEach(f => console.log(`   • ${f.fileId || 'N/A'} - "${f.fileName}" - ${f.reason}`));
+            }
+            
+            if (errorFiles.length > 0) {
+                console.log('\n❌ FILES WITH ERRORS:');
+                errorFiles.forEach(f => console.log(`   • ${f.fileId || 'N/A'} - "${f.fileName}" - ${f.error}`));
+            }
+
+            console.log('🔄 ===== STATUS ROUTER CYCLE COMPLETE =====\n');
 
         } catch (error) {
-            console.error('Error processing status changes:', error);
+            console.error('❌ Error processing status changes:', error);
             await this.logError('STATUS_PROCESSING', error.message);
             throw error;
         }
@@ -115,9 +193,11 @@ class StatusRouterService {
     async processRowByStatus(fileId, status, row, rowIndex) {
         try {
             switch (status) {
-                case 'Needs Med/Reg/Leg Review':
-                case 'Needs MRL Review': // Alternative spelling
-                    return await this.handleMRLRouting(fileId, row, rowIndex);
+                case 'Need MCL Review':
+                case 'Needs MCL Review': // Current Excel format
+                case 'Needs Med/Reg/Leg Review': // Legacy support
+                case 'Needs MRL Review': // Legacy support
+                    return await this.handleMCLRouting(fileId, row, rowIndex);
                 
                 case 'Fast track':
                     return await this.handleFastTrack(fileId, row, rowIndex);
@@ -141,21 +221,31 @@ class StatusRouterService {
         }
     }
 
-    async handleMRLRouting(fileId, step1Row, rowIndex) {
+    async handleMCLRouting(fileId, step1Row, rowIndex) {
         try {
-            console.log(`Handling MRL routing for FileID: ${fileId}`);
+            const fileName = step1Row.values[0][1] || 'Unknown';
+            console.log(`\n🔀 MCL ROUTING - FileID: ${fileId}, Name: "${fileName}"`);
             
             // Check if already processed (has Routed On date)
             const routedOnIndex = this.excelService.getColumnIndex('Step1_Review', 'Routed On');
             const routedOn = step1Row.values[0][routedOnIndex];
             
             if (routedOn && routedOn.trim() !== '') {
-                console.log(`FileID ${fileId} already routed to MRL (Routed On: ${routedOn})`);
+                console.log(`   ⏸️  DUPLICATE PREVENTION: Already routed on ${routedOn}`);
+                console.log(`   ➡️  SKIPPING: FileID ${fileId} to prevent duplicate processing`);
                 return false;
             }
 
-            // Step 1: De-dup check and add to MRL table if needed
-            const mrlResult = await this.excelService.addToMRLIfNotExists(step1Row);
+            console.log(`   🔍 CHECKING: Does FileID ${fileId} exist in MCL table?`);
+            
+            // Step 1: De-dup check and add to MCL table if needed
+            const mclResult = await this.excelService.addToMCLIfNotExists(step1Row);
+            
+            if (mclResult.existed) {
+                console.log(`   ✅ FOUND: FileID ${fileId} already exists in MCL table`);
+            } else {
+                console.log(`   ➕ ADDED: FileID ${fileId} newly added to MCL table`);
+            }
             
             // Step 2: Update Step1 row with routing information
             const now = new Date().toISOString();
@@ -163,64 +253,71 @@ class StatusRouterService {
             
             const updates = {
                 [routedOnIndex]: now,
-                [lastActionIndex]: mrlResult.existed ? 'Sent to MRL (already existed)' : 'Sent to MRL (added new row)'
+                [lastActionIndex]: mclResult.existed ? 'Sent to MCL (already existed)' : 'Sent to MCL (added new row)'
             };
 
+            console.log(`   📝 UPDATING: Step1 row ${rowIndex + 1} with routing timestamp`);
             await this.excelService.updateRowByIndex('Step1_Review', rowIndex, updates);
 
-            // Log the action
+            // Log the action to database
             await this.logProcessingAction(
                 fileId, 
-                step1Row.values[0][1], // File Name
-                'routed_to_mrl', 
+                fileName,
+                'routed_to_mcl', 
                 'success', 
-                mrlResult.existed ? 'Already existed in MRL' : 'Added to MRL table'
+                mclResult.existed ? 'Already existed in MCL' : 'Added to MCL table'
             );
 
-            console.log(`Successfully routed FileID ${fileId} to MRL`);
+            console.log(`   🎯 SUCCESS: FileID ${fileId} routing completed`);
             return true;
 
         } catch (error) {
-            console.error(`Error in MRL routing for FileID ${fileId}:`, error);
-            await this.logProcessingAction(fileId, step1Row.values[0][1], 'routed_to_mrl', 'error', error.message);
+            const fileName = step1Row.values[0][1] || 'Unknown';
+            console.error(`   ❌ ERROR in MCL routing for FileID ${fileId}:`, error.message);
+            await this.logProcessingAction(fileId, fileName, 'routed_to_mcl', 'error', error.message);
             throw error;
         }
     }
 
     async handleFastTrack(fileId, step1Row, rowIndex) {
         try {
-            console.log(`Handling fast track for FileID: ${fileId}`);
+            const fileName = step1Row.values[0][1] || 'Unknown';
+            console.log(`\n⚡ FAST TRACK - FileID: ${fileId}, Name: "${fileName}"`);
             
             // Check if already processed (has Routed On date)
             const routedOnIndex = this.excelService.getColumnIndex('Step1_Review', 'Routed On');
             const routedOn = step1Row.values[0][routedOnIndex];
             
             if (routedOn && routedOn.trim() !== '') {
-                console.log(`FileID ${fileId} already fast-tracked (Routed On: ${routedOn})`);
+                console.log(`   ⏸️  DUPLICATE PREVENTION: Already fast-tracked on ${routedOn}`);
+                console.log(`   ➡️  SKIPPING: FileID ${fileId} to prevent duplicate processing`);
                 return false;
             }
 
-            const fileName = step1Row.values[0][1]; // File Name
-
             // Step 1: Move the file to Final organization folder
             try {
+                console.log(`   🔍 CHECKING: Does file still exist in SharePoint?`);
+                
                 // Check if file still exists before moving
                 const fileExists = await this.sharePointService.checkFileExists(fileId);
                 if (!fileExists) {
                     throw new Error('File not found in SharePoint');
                 }
+                console.log(`   ✅ CONFIRMED: File exists in SharePoint`);
 
+                console.log(`   📁 MOVING: "${fileName}" to Final organization folder`);
                 await this.sharePointService.moveFileToFinalOrg(fileId, fileName);
-                console.log(`File ${fileName} moved to Final organization folder`);
+                console.log(`   🎯 MOVED: File successfully moved to Final organization`);
 
             } catch (moveError) {
-                console.error(`Error moving file ${fileName}:`, moveError);
+                console.error(`   ❌ MOVE FAILED: ${moveError.message}`);
                 
                 // Still update the Excel row to indicate attempt, but mark as error
                 const now = new Date().toISOString();
                 const lastActionIndex = this.excelService.getColumnIndex('Step1_Review', 'Last Action');
                 const errorIndex = this.excelService.getColumnIndex('Step1_Review', 'Error');
                 
+                console.log(`   📝 UPDATING: Marking fast-track attempt with error`);
                 await this.excelService.updateRowByIndex('Step1_Review', rowIndex, {
                     [routedOnIndex]: now,
                     [lastActionIndex]: 'Fast-track attempted (file move failed)',
@@ -242,17 +339,19 @@ class StatusRouterService {
                 [errorIndex]: '' // Clear any previous errors
             };
 
+            console.log(`   📝 UPDATING: Step1 row ${rowIndex + 1} with fast-track completion`);
             await this.excelService.updateRowByIndex('Step1_Review', rowIndex, updates);
 
             // Log successful fast-track
             await this.logProcessingAction(fileId, fileName, 'fast_tracked', 'success', 'File moved to Final organization');
 
-            console.log(`Successfully fast-tracked FileID ${fileId}`);
+            console.log(`   🎯 SUCCESS: FileID ${fileId} fast-track completed`);
             return true;
 
         } catch (error) {
-            console.error(`Error in fast track for FileID ${fileId}:`, error);
-            await this.logProcessingAction(fileId, step1Row.values[0][1], 'fast_tracked', 'error', error.message);
+            const fileName = step1Row.values[0][1] || 'Unknown';
+            console.error(`   ❌ ERROR in fast track for FileID ${fileId}:`, error.message);
+            await this.logProcessingAction(fileId, fileName, 'fast_tracked', 'error', error.message);
             throw error;
         }
     }
@@ -293,8 +392,35 @@ class StatusRouterService {
 
     // Manual trigger for testing
     async manualStatusCheck() {
-        console.log('Manual status check triggered');
-        await this.processStatusChanges();
+        console.log('🚨 MANUAL STATUS CHECK TRIGGERED - ENHANCED DEBUG VERSION');
+        console.log('🔍 Current timestamp:', new Date().toISOString());
+        console.log('🏗️ Service running state:', this.isRunning);
+        console.log('💾 Database connection:', this.db ? 'Connected' : 'Not connected');
+        console.log('📊 Excel service state:', this.excelService ? 'Initialized' : 'Not initialized');
+        console.log('📁 SharePoint service state:', this.sharePointService ? 'Initialized' : 'Not initialized');
+        
+        // Check if services are properly initialized
+        if (!this.excelService) {
+            throw new Error('Excel service not initialized');
+        }
+        if (!this.sharePointService) {
+            throw new Error('SharePoint service not initialized');
+        }
+        if (!this.db) {
+            throw new Error('Database connection not established');
+        }
+        
+        console.log('🎯 About to call processStatusChanges()...');
+        
+        try {
+            await this.processStatusChanges();
+            console.log('✅ processStatusChanges() completed successfully');
+        } catch (error) {
+            console.error('❌ Error in processStatusChanges():', error);
+            console.error('❌ Error type:', error.constructor.name);
+            console.error('❌ Error stack:', error.stack);
+            throw error;
+        }
     }
 
     async getProcessingStats() {
