@@ -76,7 +76,8 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
     try {
       const response = await instance.acquireTokenSilent({
         scopes: ['User.Read', 'Sites.ReadWrite.All', 'Files.ReadWrite.All'],
-        account: user.account
+        account: user.account,
+        forceRefresh: true // Force refresh to get new scopes
       });
 
       return {
