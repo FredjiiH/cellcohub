@@ -36,14 +36,14 @@ class SharePointService {
     async resolveFolderIds() {
         try {
             // Ready to Review folder
-            const readyToReviewPath = '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval Test/Ready to Review Test';
+            const readyToReviewPath = '/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Ready to Review';
             const readyFolder = await this.graphClient
                 .api(`/sites/${this.siteId}/drive/root:${readyToReviewPath}`)
                 .get();
             this.readyToReviewFolderId = readyFolder.id;
 
             // Final organization folder (create if doesn't exist)
-            const finalOrgPath = '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval Test/Final organization Test';
+            const finalOrgPath = '/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Final organization';
             try {
                 const finalFolder = await this.graphClient
                     .api(`/sites/${this.siteId}/drive/root:${finalOrgPath}`)
@@ -52,7 +52,7 @@ class SharePointService {
             } catch (error) {
                 if (error.code === 'itemNotFound') {
                     console.log('Final organization folder not found, creating...');
-                    const parentPath = '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval Test';
+                    const parentPath = '/General/MARKETING & COMMUNICATIONS/Projects/Content approval';
                     const parentFolder = await this.graphClient
                         .api(`/sites/${this.siteId}/drive/root:${parentPath}`)
                         .get();
@@ -60,7 +60,7 @@ class SharePointService {
                     const newFolder = await this.graphClient
                         .api(`/sites/${this.siteId}/drive/items/${parentFolder.id}/children`)
                         .post({
-                            name: 'Final organization Test',
+                            name: 'Final organization',
                             folder: {},
                             '@microsoft.graph.conflictBehavior': 'rename'
                         });
