@@ -636,7 +636,11 @@ app.get('/api/content-approval/health', async (req, res) => {
 
 // Start content approval services
 app.post('/api/content-approval/start', async (req, res) => {
+  console.log('🚀 START SERVICES TRIGGERED');
+  console.log('🚀 Timestamp:', new Date().toISOString());
+  
   try {
+    console.log('🚀 Extracting access token...');
     console.log('=== STARTING CONTENT APPROVAL SERVICES ===');
     console.log('Request headers:', Object.keys(req.headers));
     
@@ -646,18 +650,24 @@ app.post('/api/content-approval/start', async (req, res) => {
       return res.status(401).json({ error: 'Access token required' });
     }
 
-    console.log('Access token received (length):', accessToken.length);
+    console.log('🚀 Access token received (length):', accessToken.length);
 
+    console.log('🚀 Checking manager...');
     if (!contentApprovalManager) {
-      console.log('Creating new ContentApprovalManager...');
+      console.log('🚀 Creating new ContentApprovalManager...');
       contentApprovalManager = new ContentApprovalManager();
+    } else {
+      console.log('🚀 Using existing ContentApprovalManager');
     }
     
+    console.log('🚀 About to start manager...');
     console.log('Starting content approval manager with access token...');
     await contentApprovalManager.start(accessToken);
+    console.log('🚀 ✅ Manager started successfully');
     
-    console.log('Getting service status...');
+    console.log('🚀 Getting service status...');
     const status = await contentApprovalManager.getServiceStatus();
+    console.log('🚀 ✅ Service status retrieved');
     
     console.log('Services started successfully:', status);
     res.json({ message: 'Content approval services started', status });
@@ -706,25 +716,39 @@ app.post('/api/content-approval/restart', async (req, res) => {
 
 // Manual triggers
 app.post('/api/content-approval/trigger/file-check', async (req, res) => {
+  console.log('🔥 FILE-CHECK TRIGGER STARTED');
+  console.log('🔥 Timestamp:', new Date().toISOString());
+  
   try {
+    console.log('🔥 Extracting auth header...');
     // Extract access token from Authorization header
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('🔥 ❌ No auth header found');
       return res.status(401).json({ error: 'No valid authorization header' });
     }
     const accessToken = authHeader.substring(7);
+    console.log('🔥 ✅ Auth header extracted successfully');
     
+    console.log('🔥 Checking manager...');
     // Initialize manager if needed
     if (!contentApprovalManager) {
-      console.log('Creating new ContentApprovalManager for file-check trigger');
+      console.log('🔥 Creating new ContentApprovalManager for file-check trigger');
       contentApprovalManager = new ContentApprovalManager();
+    } else {
+      console.log('🔥 Using existing ContentApprovalManager');
     }
     
+    console.log('🔥 About to initialize manager...');
     // Always initialize/update with the current user's token
-    console.log('Initializing with user token for file-check');
+    console.log('🔥 Initializing with user token for file-check');
     await contentApprovalManager.initialize(accessToken);
+    console.log('🔥 ✅ Manager initialized successfully');
     
+    console.log('🔥 About to trigger file check...');
     await contentApprovalManager.triggerFileCheck();
+    console.log('🔥 ✅ File check completed successfully');
+    
     res.json({ message: 'File check triggered successfully' });
   } catch (error) {
     console.error('Error triggering file check:', error);
