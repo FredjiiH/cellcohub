@@ -144,8 +144,8 @@ class ExcelService {
             // Wait a moment for Excel to process the new row
             await this.delay(500);
             
-            // Try to preserve/restore dropdown validation for Status column
-            await this.preserveStatusDropdown(tableName, fileId);
+            // Try to preserve/restore dropdown validation for Status and Priority columns
+            await this.preserveDataValidation(tableName, fileId);
             
             return response;
         } catch (error) {
@@ -288,111 +288,105 @@ class ExcelService {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    async preserveStatusDropdown(tableName, fileId) {
+    async preserveDataValidation(tableName, fileId) {
         try {
-            console.log(`🔄 Attempting to preserve Status dropdown for ${tableName}...`);
+            console.log(`🔄 Attempting to preserve data validation for ${tableName}...`);
             
             // The fundamental issue: Excel tables don't always preserve data validation 
             // when rows are added programmatically. Let's try a workaround.
             
-            const statusColumnIndex = this.getColumnIndex(tableName, 'Status');
-            if (statusColumnIndex === undefined) {
-                console.log('Status column not found, skipping');
+            const validationColumns = ['Status', 'Priority'];
+            
+            for (const columnName of validationColumns) {
+                const columnIndex = this.getColumnIndex(tableName, columnName);
+                if (columnIndex === undefined) {
+                    console.log(`${columnName} column not found, skipping`);
+                    continue;
+                }
+                
+                await this.applyColumnValidation(tableName, fileId, columnName, columnIndex);
+            }
+        } catch (error) {
+            console.error(`❌ Error preserving data validation for ${tableName}:`, error.message);
+        }
+    }
+
+    async applyColumnValidation(tableName, fileId, columnName, columnIndex) {
+        try {
+            console.log(`🔄 Applying ${columnName} validation...`);
+            
+            const columnLetter = this.getColumnLetter(columnIndex);
+            
+            // Since you mentioned using named ranges in Name Manager, let's try that approach first
+            const namedRangeName = `${columnName}_Options`;
+            
+            let validationSource;
+            let options;
+            
+            // Define validation options based on column
+            if (columnName === 'Status') {
+                options = tableName === 'Step1_Review' 
+                    ? ['Pending Michael Review', 'Need MCL Review', 'Fast track', 'Rejected']
+                    : ['In Progress', 'Completed', 'On Hold'];
+                validationSource = namedRangeName; // Try named range first
+            } else if (columnName === 'Priority') {
+                options = ['Low', 'Normal', 'High', 'Urgent'];
+                validationSource = namedRangeName; // Try named range first
+            } else {
                 return;
             }
 
-            // Get all existing rows to see if any have validation we can copy
-            const rows = await this.getAllTableRows(tableName);
-            console.log(`Found ${rows.length} existing rows in ${tableName}`);
-            
-            if (rows.length > 1) {
-                // Try to copy validation from the first data row (not header)
-                const firstDataRowIndex = 1; // Skip header row
-                const columnLetter = this.getColumnLetter(statusColumnIndex);
-                
-                try {
-                    // Get validation from existing row
-                    const existingCellAddress = `${columnLetter}${firstDataRowIndex + 1}`; // +1 because Excel is 1-indexed
-                    const existingValidation = await this.graphClient
-                        .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/worksheets/Sheet1/range(address='${existingCellAddress}')/dataValidation`)
-                        .get();
-                    
-                    console.log('Found existing validation:', existingValidation.type, existingValidation.source);
-                    
-                    // Apply this validation to the entire column
-                    const columnRange = `${columnLetter}:${columnLetter}`;
-                    await this.graphClient
-                        .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/worksheets/Sheet1/range(address='${columnRange}')/dataValidation`)
-                        .put({
-                            type: existingValidation.type,
-                            source: existingValidation.source,
-                            allowBlank: existingValidation.allowBlank,
-                            showInputMessage: existingValidation.showInputMessage,
-                            inputTitle: existingValidation.inputTitle,
-                            inputMessage: existingValidation.inputMessage,
-                            showErrorMessage: existingValidation.showErrorMessage,
-                            errorTitle: existingValidation.errorTitle,
-                            errorMessage: existingValidation.errorMessage
-                        });
-                    
-                    console.log(`✅ Successfully copied validation to entire ${columnLetter} column`);
-                    return;
-                    
-                } catch (copyError) {
-                    console.log(`Could not copy existing validation: ${copyError.message}`);
-                    // Fall back to applying fresh validation
-                }
-            }
-            
-            // Fallback: apply fresh validation
-            await this.applyFreshStatusValidation(tableName, fileId);
-            
-        } catch (error) {
-            console.error(`❌ Error preserving dropdown for ${tableName}:`, error.message);
-        }
-    }
-
-    async applyFreshStatusValidation(tableName, fileId) {
-        try {
-            console.log(`📝 Applying fresh validation to ${tableName}...`);
-            
-            const statusOptions = tableName === 'Step1_Review' 
-                ? ['Pending Michael Review', 'Need MCL Review', 'Fast track', 'Rejected']
-                : ['In Progress', 'Completed', 'On Hold'];
-
-            const statusColumnIndex = this.getColumnIndex(tableName, 'Status');
-            const columnLetter = this.getColumnLetter(statusColumnIndex);
-            
-            // Apply to a large range to cover current and future rows
+            // Apply to a large range to cover current and future rows (excluding header)
             const range = `${columnLetter}2:${columnLetter}1000`;
             
-            const validationRule = {
-                type: 'List',
-                source: statusOptions.join(','),
-                allowBlank: false,
-                showInputMessage: true,
-                inputTitle: 'Status',
-                inputMessage: 'Select a status from the dropdown',
-                showErrorMessage: true,
-                errorTitle: 'Invalid Status', 
-                errorMessage: 'Please choose a valid status option'
-            };
+            try {
+                // First try using the named range
+                const validationRule = {
+                    type: 'List',
+                    source: `=${namedRangeName}`, // Reference the named range
+                    allowBlank: columnName === 'Priority', // Allow blank for Priority but not Status
+                    showInputMessage: true,
+                    inputTitle: columnName,
+                    inputMessage: `Select a ${columnName.toLowerCase()} from the dropdown`,
+                    showErrorMessage: true,
+                    errorTitle: `Invalid ${columnName}`, 
+                    errorMessage: `Please choose a valid ${columnName.toLowerCase()} option`
+                };
 
-            await this.graphClient
-                .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/worksheets/Sheet1/range(address='${range}')/dataValidation`)
-                .put(validationRule);
+                await this.graphClient
+                    .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/worksheets/Sheet1/range(address='${range}')/dataValidation`)
+                    .put(validationRule);
 
-            console.log(`✅ Applied fresh validation to range ${range} in ${tableName}`);
+                console.log(`✅ Successfully applied ${columnName} validation using named range ${namedRangeName}`);
+                
+            } catch (namedRangeError) {
+                console.log(`Named range ${namedRangeName} not found, falling back to list values`);
+                
+                // Fallback to direct list values
+                const validationRule = {
+                    type: 'List',
+                    source: options.join(','),
+                    allowBlank: columnName === 'Priority',
+                    showInputMessage: true,
+                    inputTitle: columnName,
+                    inputMessage: `Select a ${columnName.toLowerCase()} from the dropdown`,
+                    showErrorMessage: true,
+                    errorTitle: `Invalid ${columnName}`, 
+                    errorMessage: `Please choose a valid ${columnName.toLowerCase()} option`
+                };
 
-        } catch (error) {
-            console.error(`❌ Fresh validation failed for ${tableName}:`, error.message);
+                await this.graphClient
+                    .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/worksheets/Sheet1/range(address='${range}')/dataValidation`)
+                    .put(validationRule);
+
+                console.log(`✅ Successfully applied ${columnName} validation using direct list`);
+            }
             
-            // Ultimate fallback: document the limitation
-            console.log('⚠️ Excel table validation limitation detected.');
-            console.log('   The dropdown may need to be manually restored in Excel.');
-            console.log('   This is a known limitation when adding rows programmatically to Excel tables.');
+        } catch (error) {
+            console.error(`❌ Error applying ${columnName} validation:`, error.message);
         }
     }
+
 
     getColumnLetter(columnIndex) {
         let result = '';
@@ -410,22 +404,22 @@ class ExcelService {
     getColumnIndex(tableName, columnName) {
         const columnMaps = {
             'Step1_Review': {
-                'FileID': 0,
-                'File Name': 1,
-                'File URL': 2,
-                'Purpose': 3,
-                'Target audience': 4,
-                'Descriptive Name': 5,
-                'Version Date': 6,
-                'Version': 7,
-                'Uploader': 8,
-                'Created': 9,
-                'Priority': 10,
-                'Status': 11,
-                'Michael Comment': 12,
-                'Routed On': 13,
-                'Last Action': 14,
-                'Error': 15
+                'FileID': 0,                    // 1. FileID (system)
+                'File Name': 1,                 // 2. File Name  
+                'File URL': 2,                  // 3. File URL
+                'Target audience': 3,           // 4. Target audience
+                'Purpose': 4,                   // 5. Purpose
+                'Descriptive Name': 5,          // 6. Descriptive Name
+                'Version Date': 6,              // 7. Version Date
+                'Version': 7,                   // 8. Version
+                'Uploader': 8,                  // 9. Uploader
+                'Created': 9,                   // 10. Created
+                'Priority': 10,                 // 11. Priority
+                'Status': 11,                   // 12. Status
+                'Michael Comments': 12,         // 13. Michael Comments
+                'Routed On': 13,                 // 14. Routed On (system)
+                'Last Action': 14,              // 15. Last Action (system)
+                'Error': 15                      // 16. Error (system)
             },
             'MCL_Review': {
                 'FileID': 0,
