@@ -202,7 +202,7 @@ class SharePointService {
             fileMetadata.uploader,                  // 9. Uploader
             fileMetadata.created,                   // 10. Created
             'Normal',                               // 11. Priority
-            'Pending Micke Review',                 // 12. Status
+            'Pending Michael Review',               // 12. Status
             '',                                     // 13. Michael Comments
             '',                                     // 14. Routed On (system)
             'Intake row created',                   // 15. Last Action (system)
