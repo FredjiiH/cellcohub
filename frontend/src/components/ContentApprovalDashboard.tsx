@@ -75,7 +75,7 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
 
     try {
       const response = await instance.acquireTokenSilent({
-        scopes: ['User.Read', 'Sites.Selected', 'Files.ReadWrite'],
+        scopes: ['User.Read', 'Sites.ReadWrite.All', 'Files.ReadWrite.All'],
         account: user.account
       });
 
@@ -92,7 +92,7 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
           setIsAuthenticating(true);
           
           const response = await instance.acquireTokenPopup({
-            scopes: ['User.Read', 'Sites.Selected', 'Files.ReadWrite'],
+            scopes: ['User.Read', 'Sites.ReadWrite.All', 'Files.ReadWrite.All'],
             account: user.account
           });
 
@@ -311,7 +311,7 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
                 <li>Your organization requires administrator approval for SharePoint access</li>
                 <li>Ask your IT administrator to grant consent for these permissions:
                   <ul style={{ marginLeft: '15px', marginTop: '5px' }}>
-                    <li><code>Sites.Selected</code> (delegated)</li>
+                    <li><code>Sites.ReadWrite.All</code> (delegated)</li>
                     <li><code>Files.ReadWrite.All</code> (delegated)</li>
                   </ul>
                 </li>
