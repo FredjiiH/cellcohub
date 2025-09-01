@@ -93,15 +93,42 @@ class ExcelService {
                 console.log('❌ Could not list tables:', tablesError.message);
             }
             
-            // Then try to get specific table info
+            // Then try to get specific table info and columns
+            let expectedColumnCount = null;
             try {
                 const tableInfo = await this.graphClient
                     .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/tables/${tableName}`)
                     .get();
+                
+                // Get column information
+                const columnsResponse = await this.graphClient
+                    .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/tables/${tableName}/columns`)
+                    .get();
+                
+                expectedColumnCount = columnsResponse.value.length;
                 console.log(`✅ Table ${tableName} info:`, {
-                    columnCount: tableInfo.columns?.length || 'unknown',
-                    rowCount: tableInfo.rowCount
+                    columnCount: expectedColumnCount,
+                    rowCount: tableInfo.rowCount,
+                    columnNames: columnsResponse.value.map(col => col.name)
                 });
+                
+                // Warn if column count mismatch
+                if (expectedColumnCount !== values.length) {
+                    console.log(`⚠️  COLUMN COUNT MISMATCH: Table expects ${expectedColumnCount} columns, but received ${values.length} values`);
+                    console.log(`📊 Expected columns: ${columnsResponse.value.map(col => col.name).join(', ')}`);
+                    
+                    // Adjust values array to match table structure
+                    if (values.length > expectedColumnCount) {
+                        console.log(`🔧 Truncating values array from ${values.length} to ${expectedColumnCount}`);
+                        values = values.slice(0, expectedColumnCount);
+                    } else {
+                        console.log(`🔧 Padding values array from ${values.length} to ${expectedColumnCount} with empty strings`);
+                        while (values.length < expectedColumnCount) {
+                            values.push('');
+                        }
+                    }
+                    console.log(`🔧 Adjusted values:`, values);
+                }
             } catch (tableError) {
                 console.log(`❌ Could not get table ${tableName} info:`, tableError.message);
             }
