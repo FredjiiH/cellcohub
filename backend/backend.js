@@ -510,21 +510,21 @@ app.post('/test/sharepoint-permissions', async (req, res) => {
       });
     }
 
-    // Test 3: Test folder access
+    // Test 3: Production folder access
     if (driveId) {
       try {
-        console.log('Testing test folder access...');
-        const testFolderPath = '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval Test';
-        const testFolder = await graphClient.api(`/drives/${driveId}/root:${testFolderPath}`).get();
+        console.log('Testing production folder access...');
+        const prodFolderPath = '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval';
+        const prodFolder = await graphClient.api(`/drives/${driveId}/root:${prodFolderPath}`).get();
         tests.push({
-          name: 'Test Folder Access',
+          name: 'Production Folder Access',
           status: 'success',
-          details: `Folder ID: ${testFolder.id}`,
-          folderId: testFolder.id
+          details: `Folder ID: ${prodFolder.id}`,
+          folderId: prodFolder.id
         });
       } catch (error) {
         tests.push({
-          name: 'Test Folder Access',
+          name: 'Production Folder Access',
           status: 'failed',
           error: error.message,
           statusCode: error.statusCode || error.status
@@ -535,8 +535,8 @@ app.post('/test/sharepoint-permissions', async (req, res) => {
     // Test 4: Excel file access
     if (driveId) {
       const excelFiles = [
-        '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval Test/Content_Review_step1 Test.xlsx',
-        '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval Test/Content Review sheet Medical Regulatory and Legal Test.xlsx'
+        '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Content_Review_step1.xlsx',
+        '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Content Review sheet Medical Compliance and Legal.xlsx'
       ];
 
       for (const filePath of excelFiles) {
