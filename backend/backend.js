@@ -703,20 +703,22 @@ app.post('/api/content-approval/trigger/file-check', async (req, res) => {
     }
     const accessToken = authHeader.substring(7);
     
-    // Initialize manager if needed or reinitialize with current token
+    // Initialize manager if needed
     if (!contentApprovalManager) {
-      console.log('Creating ContentApprovalManager for file-check trigger');
+      console.log('Creating new ContentApprovalManager for file-check trigger');
       contentApprovalManager = new ContentApprovalManager();
     }
     
-    // Always reinitialize with the current user's token
+    // Always initialize/update with the current user's token
+    console.log('Initializing with user token for file-check');
     await contentApprovalManager.initialize(accessToken);
     
     await contentApprovalManager.triggerFileCheck();
     res.json({ message: 'File check triggered successfully' });
   } catch (error) {
     console.error('Error triggering file check:', error);
-    res.status(500).json({ error: 'Failed to trigger file check' });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: error.message || 'Failed to trigger file check' });
   }
 });
 
@@ -729,20 +731,22 @@ app.post('/api/content-approval/trigger/status-check', async (req, res) => {
     }
     const accessToken = authHeader.substring(7);
     
-    // Initialize manager if needed or reinitialize with current token
+    // Initialize manager if needed
     if (!contentApprovalManager) {
-      console.log('Creating ContentApprovalManager for status-check trigger');
+      console.log('Creating new ContentApprovalManager for status-check trigger');
       contentApprovalManager = new ContentApprovalManager();
     }
     
-    // Always reinitialize with the current user's token
+    // Always initialize/update with the current user's token
+    console.log('Initializing with user token for status-check');
     await contentApprovalManager.initialize(accessToken);
     
     await contentApprovalManager.triggerStatusCheck();
     res.json({ message: 'Status check triggered successfully' });
   } catch (error) {
     console.error('Error triggering status check:', error);
-    res.status(500).json({ error: 'Failed to trigger status check' });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: error.message || 'Failed to trigger status check' });
   }
 });
 
@@ -756,20 +760,22 @@ app.get('/api/content-approval/step1-data', async (req, res) => {
     }
     const accessToken = authHeader.substring(7);
     
-    // Initialize manager if needed or reinitialize with current token
+    // Initialize manager if needed
     if (!contentApprovalManager) {
-      console.log('Creating ContentApprovalManager for step1-data');
+      console.log('Creating new ContentApprovalManager for step1-data');
       contentApprovalManager = new ContentApprovalManager();
     }
     
-    // Always reinitialize with the current user's token
+    // Always initialize/update with the current user's token
+    console.log('Initializing with user token for step1-data');
     await contentApprovalManager.initialize(accessToken);
     
     const data = await contentApprovalManager.getStep1Data();
     res.json(data);
   } catch (error) {
     console.error('Error getting Step1 data:', error);
-    res.status(500).json({ error: 'Failed to get Step1 data' });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: error.message || 'Failed to get Step1 data' });
   }
 });
 
@@ -782,20 +788,22 @@ app.get('/api/content-approval/mrl-data', async (req, res) => {
     }
     const accessToken = authHeader.substring(7);
     
-    // Initialize manager if needed or reinitialize with current token
+    // Initialize manager if needed
     if (!contentApprovalManager) {
-      console.log('Creating ContentApprovalManager for mrl-data');
+      console.log('Creating new ContentApprovalManager for mrl-data');
       contentApprovalManager = new ContentApprovalManager();
     }
     
-    // Always reinitialize with the current user's token
+    // Always initialize/update with the current user's token
+    console.log('Initializing with user token for mrl-data');
     await contentApprovalManager.initialize(accessToken);
     
     const data = await contentApprovalManager.getMRLData();
     res.json(data);
   } catch (error) {
     console.error('Error getting MRL data:', error);
-    res.status(500).json({ error: 'Failed to get MRL data' });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: error.message || 'Failed to get MRL data' });
   }
 });
 
@@ -808,20 +816,22 @@ app.get('/api/content-approval/sharepoint-files', async (req, res) => {
     }
     const accessToken = authHeader.substring(7);
     
-    // Initialize manager if needed or reinitialize with current token
+    // Initialize manager if needed
     if (!contentApprovalManager) {
-      console.log('Creating ContentApprovalManager for sharepoint-files');
+      console.log('Creating new ContentApprovalManager for sharepoint-files');
       contentApprovalManager = new ContentApprovalManager();
     }
     
-    // Always reinitialize with the current user's token
+    // Always initialize/update with the current user's token
+    console.log('Initializing with user token for sharepoint-files');
     await contentApprovalManager.initialize(accessToken);
     
     const files = await contentApprovalManager.getReadyToReviewFiles();
     res.json(files);
   } catch (error) {
     console.error('Error getting SharePoint files:', error);
-    res.status(500).json({ error: 'Failed to get SharePoint files' });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: error.message || 'Failed to get SharePoint files' });
   }
 });
 
@@ -835,13 +845,14 @@ app.get('/api/content-approval/logs/processing', async (req, res) => {
     }
     const accessToken = authHeader.substring(7);
     
-    // Initialize manager if needed or reinitialize with current token
+    // Initialize manager if needed
     if (!contentApprovalManager) {
-      console.log('Creating ContentApprovalManager for processing logs');
+      console.log('Creating new ContentApprovalManager for processing logs');
       contentApprovalManager = new ContentApprovalManager();
     }
     
-    // Always reinitialize with the current user's token
+    // Always initialize/update with the current user's token
+    console.log('Initializing with user token for processing logs');
     await contentApprovalManager.initialize(accessToken);
     
     const limit = parseInt(req.query.limit) || 100;
@@ -849,7 +860,8 @@ app.get('/api/content-approval/logs/processing', async (req, res) => {
     res.json(logs);
   } catch (error) {
     console.error('Error getting processing logs:', error);
-    res.status(500).json({ error: 'Failed to get processing logs' });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: error.message || 'Failed to get processing logs' });
   }
 });
 
@@ -862,13 +874,14 @@ app.get('/api/content-approval/logs/errors', async (req, res) => {
     }
     const accessToken = authHeader.substring(7);
     
-    // Initialize manager if needed or reinitialize with current token
+    // Initialize manager if needed
     if (!contentApprovalManager) {
-      console.log('Creating ContentApprovalManager for error logs');
+      console.log('Creating new ContentApprovalManager for error logs');
       contentApprovalManager = new ContentApprovalManager();
     }
     
-    // Always reinitialize with the current user's token
+    // Always initialize/update with the current user's token
+    console.log('Initializing with user token for error logs');
     await contentApprovalManager.initialize(accessToken);
     
     const limit = parseInt(req.query.limit) || 50;
@@ -876,7 +889,8 @@ app.get('/api/content-approval/logs/errors', async (req, res) => {
     res.json(logs);
   } catch (error) {
     console.error('Error getting error logs:', error);
-    res.status(500).json({ error: 'Failed to get error logs' });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: error.message || 'Failed to get error logs' });
   }
 });
 
@@ -889,20 +903,22 @@ app.get('/api/content-approval/stats', async (req, res) => {
     }
     const accessToken = authHeader.substring(7);
     
-    // Initialize manager if needed or reinitialize with current token
+    // Initialize manager if needed
     if (!contentApprovalManager) {
-      console.log('Creating ContentApprovalManager for stats');
+      console.log('Creating new ContentApprovalManager for stats');
       contentApprovalManager = new ContentApprovalManager();
     }
     
-    // Always reinitialize with the current user's token
+    // Always initialize/update with the current user's token
+    console.log('Initializing with user token for stats');
     await contentApprovalManager.initialize(accessToken);
     
     const stats = await contentApprovalManager.getProcessingStats();
     res.json(stats);
   } catch (error) {
     console.error('Error getting processing stats:', error);
-    res.status(500).json({ error: 'Failed to get processing stats' });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: error.message || 'Failed to get processing stats' });
   }
 });
 

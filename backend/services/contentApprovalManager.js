@@ -13,6 +13,13 @@ class ContentApprovalManager {
     }
 
     async initialize(accessToken = null) {
+        if (this.isInitialized && accessToken) {
+            // If already initialized but we have a new token, just update the token
+            console.log('Content approval manager already initialized, updating access token');
+            this.updateAccessToken(accessToken);
+            return true;
+        }
+        
         if (this.isInitialized) {
             console.log('Content approval manager already initialized');
             return true;
@@ -88,6 +95,50 @@ class ContentApprovalManager {
         } catch (error) {
             console.error('Failed to initialize content approval manager:', error);
             console.error('Error stack:', error.stack);
+            throw error;
+        }
+    }
+
+    updateAccessToken(accessToken) {
+        try {
+            console.log('Updating access token for all services...');
+            
+            // Set access token for main services
+            if (this.excelService && this.excelService.graphClientService) {
+                this.excelService.graphClientService.setAccessToken(accessToken);
+                this.excelService.graphClient = this.excelService.graphClientService.getClient();
+            }
+            
+            if (this.sharePointService && this.sharePointService.graphClientService) {
+                this.sharePointService.graphClientService.setAccessToken(accessToken);
+                this.sharePointService.graphClient = this.sharePointService.graphClientService.getClient();
+            }
+            
+            // Set access token for services in fileMonitorService
+            if (this.fileMonitorService && this.fileMonitorService.excelService && this.fileMonitorService.excelService.graphClientService) {
+                this.fileMonitorService.excelService.graphClientService.setAccessToken(accessToken);
+                this.fileMonitorService.excelService.graphClient = this.fileMonitorService.excelService.graphClientService.getClient();
+            }
+            
+            if (this.fileMonitorService && this.fileMonitorService.sharePointService && this.fileMonitorService.sharePointService.graphClientService) {
+                this.fileMonitorService.sharePointService.graphClientService.setAccessToken(accessToken);
+                this.fileMonitorService.sharePointService.graphClient = this.fileMonitorService.sharePointService.graphClientService.getClient();
+            }
+            
+            // Set access token for services in statusRouterService
+            if (this.statusRouterService && this.statusRouterService.excelService && this.statusRouterService.excelService.graphClientService) {
+                this.statusRouterService.excelService.graphClientService.setAccessToken(accessToken);
+                this.statusRouterService.excelService.graphClient = this.statusRouterService.excelService.graphClientService.getClient();
+            }
+            
+            if (this.statusRouterService && this.statusRouterService.sharePointService && this.statusRouterService.sharePointService.graphClientService) {
+                this.statusRouterService.sharePointService.graphClientService.setAccessToken(accessToken);
+                this.statusRouterService.sharePointService.graphClient = this.statusRouterService.sharePointService.graphClientService.getClient();
+            }
+            
+            console.log('Access token updated for all services');
+        } catch (error) {
+            console.error('Error updating access token:', error);
             throw error;
         }
     }
