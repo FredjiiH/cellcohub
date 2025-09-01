@@ -142,8 +142,19 @@ class SharePointService {
                 throw new Error(`Invalid date in filename: ${dateStr}`);
             }
 
+            // Extract target audience from purpose if it follows pattern "Type - Audience"
+            let extractedPurpose = purpose.trim();
+            let targetAudience = '';
+            
+            const purposeParts = purpose.trim().split(' - ');
+            if (purposeParts.length >= 2) {
+                extractedPurpose = purposeParts[0].trim();
+                targetAudience = purposeParts[1].trim();
+            }
+
             return {
-                purpose: purpose.trim(),
+                purpose: extractedPurpose,
+                targetAudience: targetAudience,
                 descriptiveName: descriptiveName.trim(),
                 versionDate: versionDate.toISOString().split('T')[0], // yyyy-MM-dd format
                 version: version.trim(),
@@ -180,21 +191,22 @@ class SharePointService {
         const now = new Date().toISOString();
         
         return [
-            fileMetadata.fileId,                    // FileID (system)
-            parsedName.fileName,                    // File Name
-            fileMetadata.fileUrl,                   // File URL
-            parsedName.purpose,                     // Purpose
-            parsedName.descriptiveName,             // Descriptive Name
-            parsedName.versionDate,                 // Version Date
-            parsedName.version,                     // Version
-            fileMetadata.uploader,                  // Uploader
-            fileMetadata.created,                   // Created
-            'Normal',                               // Priority
-            'Pending Micke Review',                 // Status
-            '',                                     // Micke Notes
-            '',                                     // Routed On (system)
-            'Intake row created',                   // Last Action (system)
-            ''                                      // Error (system)
+            fileMetadata.fileId,                    // 1. FileID (system)
+            parsedName.fileName,                    // 2. File Name
+            fileMetadata.fileUrl,                   // 3. File URL
+            parsedName.targetAudience || '',        // 4. Target audience
+            parsedName.purpose,                     // 5. Purpose
+            parsedName.descriptiveName,             // 6. Descriptive Name
+            parsedName.versionDate,                 // 7. Version Date
+            parsedName.version,                     // 8. Version
+            fileMetadata.uploader,                  // 9. Uploader
+            fileMetadata.created,                   // 10. Created
+            'Normal',                               // 11. Priority
+            'Pending Micke Review',                 // 12. Status
+            '',                                     // 13. Michael Comments
+            '',                                     // 14. Routed On (system)
+            'Intake row created',                   // 15. Last Action (system)
+            ''                                      // 16. Error (system)
         ];
     }
 
