@@ -37,14 +37,14 @@ class ExcelService {
     async resolveFileIds() {
         try {
             // Path to Step 1 Excel file
-            const step1Path = '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval Test/Content_Review_step1 Test.xlsx';
+            const step1Path = '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Content_Review_step1.xlsx';
             const step1File = await this.graphClient
                 .api(`/sites/${this.siteId}/drive/root:${step1Path}`)
                 .get();
             this.step1FileId = step1File.id;
 
             // Path to MCL Excel file
-            const mrlPath = '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval Test/Content Review sheet Medical Compliance and Legal Test.xlsx';
+            const mrlPath = '/Shared Documents/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Content Review sheet Medical Compliance and Legal.xlsx';
             const mrlFile = await this.graphClient
                 .api(`/sites/${this.siteId}/drive/root:${mrlPath}`)
                 .get();
