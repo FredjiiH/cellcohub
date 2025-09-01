@@ -184,27 +184,53 @@ class FileMonitorService {
 
     async getProcessingLogs(limit = 100) {
         try {
-            return await this.db.collection('processing_logs')
+            console.log('🔍 Getting processing logs...');
+            console.log('📊 Database connection status:', this.db ? 'Connected' : 'Not connected');
+            console.log('📄 Requested limit:', limit);
+            
+            if (!this.db) {
+                console.error('❌ Database connection not available for processing logs');
+                throw new Error('Database connection not available');
+            }
+            
+            const logs = await this.db.collection('processing_logs')
                 .find({})
                 .sort({ timestamp: -1 })
                 .limit(limit)
                 .toArray();
+            
+            console.log('✅ Retrieved processing logs:', logs.length, 'entries');
+            return logs;
         } catch (error) {
-            console.error('Error getting processing logs:', error);
-            return [];
+            console.error('❌ Error getting processing logs:', error.message);
+            console.error('❌ Error stack:', error.stack);
+            throw error; // Re-throw to let the API endpoint handle it
         }
     }
 
     async getErrorLogs(limit = 50) {
         try {
-            return await this.db.collection('error_logs')
+            console.log('🔍 Getting error logs...');
+            console.log('📊 Database connection status:', this.db ? 'Connected' : 'Not connected');
+            console.log('📄 Requested limit:', limit);
+            
+            if (!this.db) {
+                console.error('❌ Database connection not available for error logs');
+                throw new Error('Database connection not available');
+            }
+            
+            const logs = await this.db.collection('error_logs')
                 .find({})
                 .sort({ timestamp: -1 })
                 .limit(limit)
                 .toArray();
+            
+            console.log('✅ Retrieved error logs:', logs.length, 'entries');
+            return logs;
         } catch (error) {
-            console.error('Error getting error logs:', error);
-            return [];
+            console.error('❌ Error getting error logs:', error.message);
+            console.error('❌ Error stack:', error.stack);
+            throw error; // Re-throw to let the API endpoint handle it
         }
     }
 

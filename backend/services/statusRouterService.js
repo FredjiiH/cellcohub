@@ -425,6 +425,14 @@ class StatusRouterService {
 
     async getProcessingStats() {
         try {
+            console.log('🔍 Getting processing stats...');
+            console.log('📊 Database connection status:', this.db ? 'Connected' : 'Not connected');
+            
+            if (!this.db) {
+                console.error('❌ Database connection not available for processing stats');
+                throw new Error('Database connection not available');
+            }
+            
             const stats = await this.db.collection('processing_logs').aggregate([
                 {
                     $group: {
@@ -435,10 +443,12 @@ class StatusRouterService {
                 }
             ]).toArray();
 
+            console.log('✅ Retrieved processing stats:', stats.length, 'entries');
             return stats;
         } catch (error) {
-            console.error('Error getting processing stats:', error);
-            return [];
+            console.error('❌ Error getting processing stats:', error.message);
+            console.error('❌ Error stack:', error.stack);
+            throw error; // Re-throw to let the API endpoint handle it
         }
     }
 }
