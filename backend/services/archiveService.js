@@ -199,13 +199,13 @@ class ArchiveService {
         }
     }
 
-    async addRowsToArchiveSheet(rows, tableName) {
+    async addRowsToArchiveSheet(rows, sourceTableName) {
         try {
             if (!this.archiveFileId) {
                 throw new Error('Archive Excel file not found. Please ensure the Content Review Sheet Archive.xlsx exists.');
             }
 
-            console.log(`Adding ${rows.length} rows to archive sheet table ${tableName}`);
+            console.log(`Adding ${rows.length} rows from ${sourceTableName} to archive sheet`);
 
             for (const row of rows) {
                 try {
@@ -213,27 +213,17 @@ class ArchiveService {
                     const archiveRow = [
                         ...row.values[0], // Original row data
                         new Date().toISOString(), // Archive Date
-                        tableName // Source Table
+                        sourceTableName // Source Table
                     ];
 
-                    // The table names in the archive sheet are likely just the same as source
-                    // Try without _Archive suffix first
-                    let tableName_actual = tableName;
-                    try {
-                        await this.graphClient
-                            .api(`/sites/${this.siteId}/drive/items/${this.archiveFileId}/workbook/tables/${tableName}/rows`)
-                            .post({
-                                values: [archiveRow]
-                            });
-                    } catch (tableError) {
-                        // If that fails, try with _Archive suffix
-                        console.log(`Table ${tableName} not found, trying ${tableName}_Archive`);
-                        await this.graphClient
-                            .api(`/sites/${this.siteId}/drive/items/${this.archiveFileId}/workbook/tables/${tableName}_Archive/rows`)
-                            .post({
-                                values: [archiveRow]
-                            });
-                    }
+                    // All rows go to the single unified archive table
+                    const archiveTableName = 'Content_Review_Archives';
+                    
+                    await this.graphClient
+                        .api(`/sites/${this.siteId}/drive/items/${this.archiveFileId}/workbook/tables/${archiveTableName}/rows`)
+                        .post({
+                            values: [archiveRow]
+                        });
                     
                     console.log(`Added row to archive: ${row.values[0][1]}`); // File name
                 } catch (error) {
