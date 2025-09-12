@@ -126,8 +126,10 @@ class ArchiveProcessor {
                 }
             }
 
-            // Step 6: Add rows to archive sheet
+            // Step 6: Add rows to archive sheet (MUST succeed before deletion)
             console.log('Adding rows to archive sheet...');
+            let step1Archived = false;
+            let mclArchived = false;
             
             if (step1Rows.length > 0) {
                 try {
@@ -136,9 +138,11 @@ class ArchiveProcessor {
                         'Step1_Review'
                     );
                     results.step1Rows.processed = step1Rows.length;
+                    step1Archived = true;
                 } catch (error) {
                     console.error('Error adding Step1 rows to archive:', error);
                     results.step1Rows.errors.push(error.message);
+                    // DO NOT DELETE if archive failed!
                 }
             }
 
@@ -149,16 +153,18 @@ class ArchiveProcessor {
                         'MCL_Review'
                     );
                     results.mclRows.processed = mclRows.length;
+                    mclArchived = true;
                 } catch (error) {
                     console.error('Error adding MCL rows to archive:', error);
                     results.mclRows.errors.push(error.message);
+                    // DO NOT DELETE if archive failed!
                 }
             }
 
-            // Step 7: Delete rows from original sheets
-            console.log('Deleting archived rows from original sheets...');
+            // Step 7: Delete rows from original sheets ONLY if archive succeeded
+            console.log('Deleting archived rows from original sheets (only if successfully archived)...');
             
-            if (step1Rows.length > 0) {
+            if (step1Rows.length > 0 && step1Archived) {
                 try {
                     await this.archiveService.deleteRowsFromTable(
                         this.excelService, 
@@ -170,9 +176,12 @@ class ArchiveProcessor {
                     console.error('Error deleting Step1 rows:', error);
                     results.step1Rows.errors.push(`Deletion error: ${error.message}`);
                 }
+            } else if (step1Rows.length > 0 && !step1Archived) {
+                console.log('⚠️ Skipping Step1 row deletion - archive failed!');
+                results.step1Rows.errors.push('Rows NOT deleted due to archive failure - data preserved');
             }
 
-            if (mclRows.length > 0) {
+            if (mclRows.length > 0 && mclArchived) {
                 try {
                     await this.archiveService.deleteRowsFromTable(
                         this.excelService, 
@@ -184,6 +193,9 @@ class ArchiveProcessor {
                     console.error('Error deleting MCL rows:', error);
                     results.mclRows.errors.push(`Deletion error: ${error.message}`);
                 }
+            } else if (mclRows.length > 0 && !mclArchived) {
+                console.log('⚠️ Skipping MCL row deletion - archive failed!');
+                results.mclRows.errors.push('Rows NOT deleted due to archive failure - data preserved');
             }
 
             // Generate summary

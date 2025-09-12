@@ -36,17 +36,29 @@ class ArchiveService {
 
     async resolveFileIds() {
         try {
-            // Path to Archive Excel file - need to determine exact path from the SharePoint link
-            // For now, assuming it's in the same folder as other content approval files
-            const archivePath = '/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Content Review Sheet Archive.xlsx';
+            // Path to Archive Excel file
+            // The file is in the Content approval folder
+            const archivePath = '/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Content review sheet Archive.xlsx';
             try {
                 const archiveFile = await this.graphClient
                     .api(`/sites/${this.siteId}/drive/root:${archivePath}`)
                     .get();
                 this.archiveFileId = archiveFile.id;
             } catch (error) {
-                console.log('Archive Excel file not found at expected path, will need to be created or path updated');
-                this.archiveFileId = null;
+                console.log('Archive Excel file not found at expected path, trying alternative paths...');
+                
+                // Try alternative path with different casing
+                const altPath = '/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Content Review sheet Archive.xlsx';
+                try {
+                    const archiveFile = await this.graphClient
+                        .api(`/sites/${this.siteId}/drive/root:${altPath}`)
+                        .get();
+                    this.archiveFileId = archiveFile.id;
+                    console.log('Archive Excel file found at alternative path');
+                } catch (altError) {
+                    console.error('Archive Excel file not found at any known paths');
+                    this.archiveFileId = null;
+                }
             }
 
             // Path to Archives folder
@@ -204,11 +216,24 @@ class ArchiveService {
                         tableName // Source Table
                     ];
 
-                    await this.graphClient
-                        .api(`/sites/${this.siteId}/drive/items/${this.archiveFileId}/workbook/tables/${tableName}_Archive/rows`)
-                        .post({
-                            values: [archiveRow]
-                        });
+                    // The table names in the archive sheet are likely just the same as source
+                    // Try without _Archive suffix first
+                    let tableName_actual = tableName;
+                    try {
+                        await this.graphClient
+                            .api(`/sites/${this.siteId}/drive/items/${this.archiveFileId}/workbook/tables/${tableName}/rows`)
+                            .post({
+                                values: [archiveRow]
+                            });
+                    } catch (tableError) {
+                        // If that fails, try with _Archive suffix
+                        console.log(`Table ${tableName} not found, trying ${tableName}_Archive`);
+                        await this.graphClient
+                            .api(`/sites/${this.siteId}/drive/items/${this.archiveFileId}/workbook/tables/${tableName}_Archive/rows`)
+                            .post({
+                                values: [archiveRow]
+                            });
+                    }
                     
                     console.log(`Added row to archive: ${row.values[0][1]}`); // File name
                 } catch (error) {
