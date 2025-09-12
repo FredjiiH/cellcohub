@@ -37,8 +37,8 @@ class ArchiveService {
     async resolveFileIds() {
         try {
             // Path to Archive Excel file
-            // The file is in the Content approval folder
-            const archivePath = '/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Content review sheet Archive.xlsx';
+            // The file is in the Archives folder
+            const archivePath = '/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Archives/Content Review sheet Archives.xlsx';
             try {
                 const archiveFile = await this.graphClient
                     .api(`/sites/${this.siteId}/drive/root:${archivePath}`)
