@@ -209,9 +209,37 @@ class ArchiveService {
 
             for (const row of rows) {
                 try {
+                    let rowData = [...row.values[0]]; // Original row data
+                    
+                    // If this is from Step1_Review (16 columns), pad it to match MCL_Review structure (22 columns)
+                    if (sourceTableName === 'Step1_Review' && rowData.length === 16) {
+                        console.log('Padding Step1_Review row to match MCL structure...');
+                        
+                        // Step1 has columns 0-15
+                        // MCL has columns 0-21 (adds 6 reviewer columns at positions 13-18)
+                        // We need to insert empty values for the MCL-specific columns
+                        
+                        // Take first 13 columns (0-12)
+                        const firstPart = rowData.slice(0, 13);
+                        // Take last 3 columns (13-15 from Step1, which become 19-21 in MCL)
+                        const lastPart = rowData.slice(13, 16);
+                        
+                        // Reconstruct with MCL structure
+                        rowData = [
+                            ...firstPart,        // Columns 0-12
+                            '',                  // 13: Medical Comment
+                            'Not assessed',      // 14: Medical Risk
+                            '',                  // 15: Regulatory Comment
+                            'Not assessed',      // 16: Regulatory Risk
+                            '',                  // 17: Legal Comment
+                            'Not assessed',      // 18: Legal Risk
+                            ...lastPart          // 19-21: Routed On, Last Action, Error
+                        ];
+                    }
+                    
                     // Add archive-specific metadata
                     const archiveRow = [
-                        ...row.values[0], // Original row data
+                        ...rowData,
                         new Date().toISOString(), // Archive Date
                         sourceTableName // Source Table
                     ];
