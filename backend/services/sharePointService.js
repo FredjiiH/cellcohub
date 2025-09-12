@@ -122,9 +122,37 @@ class SharePointService {
             // Remove file extension
             const nameWithoutExt = fileName.replace(/\.[^/.]+$/, '');
             
-            // Parse pattern: "{Purpose} - {DescriptiveName} - {yyyymmdd} - {Version}"
-            const pattern = /^(.+?) - (.+?) - (\d{8}) - (.+?)$/;
-            const match = nameWithoutExt.match(pattern);
+            // First try 5-part pattern: "{Purpose} - {TargetAudience} - {DescriptiveName} - {yyyymmdd} - {Version}"
+            const fivePartPattern = /^(.+?) - (.+?) - (.+?) - (\d{8}) - (.+?)$/;
+            let match = nameWithoutExt.match(fivePartPattern);
+            
+            if (match) {
+                // 5-part filename
+                const [, purpose, targetAudience, descriptiveName, dateStr, version] = match;
+                
+                // Convert yyyymmdd to ISO date
+                const year = dateStr.substring(0, 4);
+                const month = dateStr.substring(4, 6);
+                const day = dateStr.substring(6, 8);
+                const versionDate = new Date(`${year}-${month}-${day}`);
+
+                if (isNaN(versionDate.getTime())) {
+                    throw new Error(`Invalid date in filename: ${dateStr}`);
+                }
+
+                return {
+                    purpose: purpose.trim(),
+                    targetAudience: targetAudience.trim(),
+                    descriptiveName: descriptiveName.trim(),
+                    versionDate: versionDate.toISOString().split('T')[0], // yyyy-MM-dd format
+                    version: version.trim(),
+                    fileName: nameWithoutExt
+                };
+            }
+            
+            // Try 4-part pattern: "{Purpose} - {DescriptiveName} - {yyyymmdd} - {Version}"
+            const fourPartPattern = /^(.+?) - (.+?) - (\d{8}) - (.+?)$/;
+            match = nameWithoutExt.match(fourPartPattern);
 
             if (!match) {
                 throw new Error(`Filename does not match expected pattern: ${fileName}`);
@@ -142,7 +170,7 @@ class SharePointService {
                 throw new Error(`Invalid date in filename: ${dateStr}`);
             }
 
-            // Extract target audience from purpose if it follows pattern "Type - Audience"
+            // For 4-part pattern, extract target audience from purpose if it follows pattern "Type - Audience"
             let extractedPurpose = purpose.trim();
             let targetAudience = '';
             

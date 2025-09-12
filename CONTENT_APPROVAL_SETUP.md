@@ -143,20 +143,32 @@ If issues occur, you can:
 
 ## File Naming Convention
 
-Files must follow this exact pattern:
+Files can follow either of these patterns:
+
+**5-part pattern (with explicit Target Audience):**
+```
+{Purpose} - {Target Audience} - {Descriptive Name} - {yyyymmdd} - {Version}.extension
+```
+
+**4-part pattern (Target Audience optional/embedded):**
 ```
 {Purpose} - {Descriptive Name} - {yyyymmdd} - {Version}.extension
 ```
 
 Examples:
-- `Toolkit - MSCs Facts sheet - 20250820 - V1.docx`
-- `Marketing Material - Product Brochure - 20250821 - V2.pdf`
+- 5-part: `FAQ - NonHCP - OA - 20250826 - V2.docx`
+  - Purpose: "FAQ"
+  - Target Audience: "NonHCP"
+  - Descriptive Name: "OA"
+  - Version Date: "2025-08-26"
+  - Version: "V2"
 
-The system will automatically parse and extract:
-- Purpose: "Toolkit"
-- Descriptive Name: "MSCs Facts sheet"  
-- Version Date: "2025-08-20"
-- Version: "V1"
+- 4-part: `Toolkit - MSCs Facts sheet - 20250820 - V1.docx`
+  - Purpose: "Toolkit"
+  - Target Audience: "" (empty)
+  - Descriptive Name: "MSCs Facts sheet"
+  - Version Date: "2025-08-20"
+  - Version: "V1"
 
 ## Next Steps
 
