@@ -194,8 +194,8 @@ class SharePointService {
             fileMetadata.fileId,                    // 1. FileID (system)
             parsedName.fileName,                    // 2. File Name
             fileMetadata.fileUrl,                   // 3. File URL
-            parsedName.targetAudience || '',        // 4. Target audience
-            parsedName.purpose,                     // 5. Purpose
+            parsedName.purpose,                     // 4. Purpose
+            parsedName.targetAudience || '',        // 5. Target audience
             parsedName.descriptiveName,             // 6. Descriptive Name
             parsedName.versionDate,                 // 7. Version Date
             parsedName.version,                     // 8. Version
