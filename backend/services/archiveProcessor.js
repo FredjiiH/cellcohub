@@ -176,20 +176,25 @@ class ArchiveProcessor {
             // Step 7: Delete rows from original sheets ONLY if archive succeeded
             console.log('Deleting archived rows from original sheets (only if successfully archived)...');
             
-            if (deduplicatedStep1Rows.length > 0 && step1Archived) {
+            // Delete ALL Step1 rows if either Step1 or MCL archiving succeeded
+            // (because files routed to MCL still need to be removed from Step1)
+            const shouldDeleteStep1 = (deduplicatedStep1Rows.length > 0 && step1Archived) || 
+                                     (mclRows.length > 0 && mclArchived);
+            
+            if (step1Rows.length > 0 && shouldDeleteStep1) {
                 try {
                     await this.archiveService.deleteRowsFromTable(
                         this.excelService, 
                         'Step1_Review', 
-                        deduplicatedStep1Rows
+                        step1Rows  // Delete ALL original Step1 rows, not just deduplicated ones
                     );
-                    console.log(`Deleted ${deduplicatedStep1Rows.length} rows from Step1_Review`);
+                    console.log(`Deleted ${step1Rows.length} rows from Step1_Review (including ${step1Rows.length - deduplicatedStep1Rows.length} that were routed to MCL)`);
                 } catch (error) {
                     console.error('Error deleting Step1 rows:', error);
                     results.step1Rows.errors.push(`Deletion error: ${error.message}`);
                 }
-            } else if (deduplicatedStep1Rows.length > 0 && !step1Archived) {
-                console.log('⚠️ Skipping Step1 row deletion - archive failed!');
+            } else if (step1Rows.length > 0 && !shouldDeleteStep1) {
+                console.log('⚠️ Skipping Step1 row deletion - archive failed for both Step1 and MCL!');
                 results.step1Rows.errors.push('Rows NOT deleted due to archive failure - data preserved');
             }
 
