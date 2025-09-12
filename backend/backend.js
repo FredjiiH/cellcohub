@@ -73,8 +73,8 @@ app.use(cors({
     'https://cellcohub-git-develop-fredjiihs-projects.vercel.app' // Develop branch deployments
   ],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['*'] // Allow all headers to match original permissive behavior
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+  // Omitting allowedHeaders lets cors package handle all headers automatically
 }));
 app.use(bodyParser.json());
 
