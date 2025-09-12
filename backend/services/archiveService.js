@@ -138,29 +138,48 @@ class ArchiveService {
         try {
             console.log(`Copying file ${fileName} to archive...`);
             
+            // Check if file already exists in the sprint folder
+            try {
+                const existingFiles = await this.graphClient
+                    .api(`/sites/${this.siteId}/drive/items/${sprintFolderId}/children`)
+                    .filter(`name eq '${fileName}'`)
+                    .get();
+                
+                if (existingFiles.value && existingFiles.value.length > 0) {
+                    console.log(`File ${fileName} already exists in sprint folder - skipping copy`);
+                    return {
+                        copyInitiated: false,
+                        alreadyExists: true,
+                        originalFileId: fileId,
+                        fileName: fileName,
+                        sprintFolderId: sprintFolderId,
+                        existingFileId: existingFiles.value[0].id
+                    };
+                }
+            } catch (checkError) {
+                console.log('Could not check for existing files, proceeding with copy...');
+            }
+            
             // Get the original file to copy
             const originalFile = await this.graphClient
                 .api(`/sites/${this.siteId}/drive/items/${fileId}`)
                 .get();
 
-            // Create a copy in the sprint folder
+            // Create a copy in the sprint folder with conflict behavior
             const copyRequest = {
                 parentReference: {
                     id: sprintFolderId
                 },
-                name: fileName
+                name: fileName,
+                '@microsoft.graph.conflictBehavior': 'rename'
             };
 
             const copyResponse = await this.graphClient
                 .api(`/sites/${this.siteId}/drive/items/${fileId}/copy`)
                 .post(copyRequest);
 
-            // The copy operation is asynchronous, need to poll for completion
-            // For now, we'll return the expected new file info
-            console.log(`File ${fileName} copy initiated`);
+            console.log(`File ${fileName} copy initiated with conflict resolution`);
             
-            // Return the expected new file URL (we'll need to construct this)
-            // The actual URL will be available once the copy completes
             return {
                 copyInitiated: true,
                 originalFileId: fileId,
@@ -237,12 +256,9 @@ class ArchiveService {
                         ];
                     }
                     
-                    // Add archive-specific metadata
-                    const archiveRow = [
-                        ...rowData,
-                        new Date().toISOString(), // Archive Date
-                        sourceTableName // Source Table
-                    ];
+                    // The archive table has exactly 22 columns, same as MCL
+                    // Don't add extra metadata columns - just use the padded row data
+                    const archiveRow = [...rowData];
 
                     // All rows go to the single unified archive table
                     const archiveTableName = 'Content_Review_Archives';
