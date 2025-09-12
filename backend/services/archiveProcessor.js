@@ -75,10 +75,13 @@ class ArchiveProcessor {
             for (const rowInfo of allRowsToProcess) {
                 try {
                     const fileId = rowInfo.row.values[0][0]; // FileID column
-                    const fileName = rowInfo.row.values[0][1]; // File Name column
+                    const descriptiveName = rowInfo.row.values[0][1]; // File Name column (parsed name)
                     const originalUrl = rowInfo.row.values[0][2]; // File URL column
 
-                    console.log(`Processing file: ${fileName}`);
+                    // Extract actual filename with extension from SharePoint URL
+                    const fileName = this.extractFilenameFromUrl(originalUrl);
+
+                    console.log(`Processing file: ${fileName} (descriptive: ${descriptiveName})`);
 
                     // Copy file to archive
                     const copyResult = await this.archiveService.copyFileToArchive(fileId, fileName, sprintFolderId);
@@ -93,7 +96,7 @@ class ArchiveProcessor {
                 } catch (error) {
                     console.error(`Error processing file for row:`, error);
                     results.filesErrors.push({
-                        fileName: rowInfo.row.values[0][1],
+                        fileName: descriptiveName,
                         error: error.message
                     });
                 }
@@ -272,6 +275,36 @@ class ArchiveProcessor {
 
     delay(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    extractFilenameFromUrl(sharePointUrl) {
+        try {
+            // SharePoint URLs contain the filename in the 'file' parameter
+            // Format: ...&file=Filename%20With%20Spaces.docx&...
+            const url = new URL(sharePointUrl);
+            const fileParam = url.searchParams.get('file');
+            
+            if (fileParam) {
+                // URL decode the filename
+                return decodeURIComponent(fileParam);
+            }
+            
+            // Fallback: extract from the end of the path
+            const pathParts = url.pathname.split('/');
+            const lastPart = pathParts[pathParts.length - 1];
+            
+            if (lastPart && lastPart.includes('.')) {
+                return decodeURIComponent(lastPart);
+            }
+            
+            // Final fallback: return a generic name (should not happen)
+            console.warn(`Could not extract filename from URL: ${sharePointUrl}`);
+            return 'Unknown File.docx';
+            
+        } catch (error) {
+            console.error('Error extracting filename from URL:', error.message);
+            return 'Unknown File.docx';
+        }
     }
 }
 
