@@ -69,7 +69,13 @@ class ArchiveProcessor {
             console.log(`Found ${mclRows.length} MCL rows to archive`);
 
             // Step 4: Process files and update URLs
-            const allRowsToProcess = [...step1Rows, ...mclRows];
+            // Deduplicate rows: if a file exists in both Step1 and MCL, only process the MCL version
+            const mclFileIds = new Set(mclRows.map(row => row.row.values[0][0])); // Get all MCL FileIDs
+            const deduplicatedStep1Rows = step1Rows.filter(row => !mclFileIds.has(row.row.values[0][0])); // Only Step1 rows not in MCL
+            
+            const allRowsToProcess = [...deduplicatedStep1Rows, ...mclRows];
+            console.log(`Processing ${deduplicatedStep1Rows.length} unique Step1 rows and ${mclRows.length} MCL rows (${step1Rows.length - deduplicatedStep1Rows.length} Step1 rows excluded as duplicates)`);
+            
             const fileOperations = [];
 
             for (const rowInfo of allRowsToProcess) {
@@ -137,13 +143,13 @@ class ArchiveProcessor {
             let step1Archived = false;
             let mclArchived = false;
             
-            if (step1Rows.length > 0) {
+            if (deduplicatedStep1Rows.length > 0) {
                 try {
                     await this.archiveService.addRowsToArchiveSheet(
-                        step1Rows.map(r => r.row), 
+                        deduplicatedStep1Rows.map(r => r.row), 
                         'Step1_Review'
                     );
-                    results.step1Rows.processed = step1Rows.length;
+                    results.step1Rows.processed = deduplicatedStep1Rows.length;
                     step1Archived = true;
                 } catch (error) {
                     console.error('Error adding Step1 rows to archive:', error);
@@ -170,19 +176,19 @@ class ArchiveProcessor {
             // Step 7: Delete rows from original sheets ONLY if archive succeeded
             console.log('Deleting archived rows from original sheets (only if successfully archived)...');
             
-            if (step1Rows.length > 0 && step1Archived) {
+            if (deduplicatedStep1Rows.length > 0 && step1Archived) {
                 try {
                     await this.archiveService.deleteRowsFromTable(
                         this.excelService, 
                         'Step1_Review', 
-                        step1Rows
+                        deduplicatedStep1Rows
                     );
-                    console.log(`Deleted ${step1Rows.length} rows from Step1_Review`);
+                    console.log(`Deleted ${deduplicatedStep1Rows.length} rows from Step1_Review`);
                 } catch (error) {
                     console.error('Error deleting Step1 rows:', error);
                     results.step1Rows.errors.push(`Deletion error: ${error.message}`);
                 }
-            } else if (step1Rows.length > 0 && !step1Archived) {
+            } else if (deduplicatedStep1Rows.length > 0 && !step1Archived) {
                 console.log('⚠️ Skipping Step1 row deletion - archive failed!');
                 results.step1Rows.errors.push('Rows NOT deleted due to archive failure - data preserved');
             }
