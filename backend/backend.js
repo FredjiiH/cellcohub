@@ -959,6 +959,54 @@ app.get('/api/content-approval/stats', async (req, res) => {
   }
 });
 
+// Archive content approval data
+app.post('/api/content-approval/archive', async (req, res) => {
+  try {
+    console.log('Archive process triggered');
+    
+    // Extract access token from Authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'No valid authorization header' });
+    }
+    const accessToken = authHeader.substring(7);
+    
+    // Get sprint name from request body
+    const { sprintName } = req.body;
+    if (!sprintName || typeof sprintName !== 'string' || sprintName.trim().length === 0) {
+      return res.status(400).json({ error: 'Sprint name is required' });
+    }
+    
+    // Validate sprint name (basic sanitization)
+    const sanitizedSprintName = sprintName.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+    
+    console.log(`Starting archive process for sprint: ${sanitizedSprintName}`);
+    
+    // Import and initialize archive processor
+    const ArchiveProcessor = require('./services/archiveProcessor');
+    const archiveProcessor = new ArchiveProcessor();
+    
+    await archiveProcessor.initialize(accessToken);
+    
+    // Process the archive
+    const results = await archiveProcessor.processArchive(sanitizedSprintName);
+    
+    console.log('Archive process completed successfully');
+    res.json({
+      message: 'Archive process completed',
+      results: results
+    });
+    
+  } catch (error) {
+    console.error('Error in archive process:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Archive process failed',
+      details: error.message 
+    });
+  }
+});
+
 // Get user permissions
 app.get('/api/user/permissions', async (req, res) => {
   try {

@@ -1,0 +1,261 @@
+const GraphClientService = require('./graphClient');
+
+class ArchiveService {
+    constructor() {
+        this.graphClientService = new GraphClientService();
+        this.graphClient = null; // Will be initialized when access token is set
+        
+        // SharePoint site and file configuration
+        this.siteId = null;
+        this.driveId = null;
+        this.archiveFileId = null; // Content Review Sheet Archive.xlsx
+        this.archivesFolderId = null; // Archives folder
+    }
+
+    async initialize() {
+        try {
+            // Resolve site ID from URL
+            const siteUrl = 'cellcoab.sharepoint.com:/sites/MarketingSales';
+            const site = await this.graphClient.api(`/sites/${siteUrl}`).get();
+            this.siteId = site.id;
+
+            // Get the default drive (Documents library)
+            const drive = await this.graphClient.api(`/sites/${this.siteId}/drive`).get();
+            this.driveId = drive.id;
+
+            // Resolve file and folder IDs
+            await this.resolveFileIds();
+            
+            console.log('Archive service initialized successfully');
+            return true;
+        } catch (error) {
+            console.error('Failed to initialize Archive service:', error);
+            throw error;
+        }
+    }
+
+    async resolveFileIds() {
+        try {
+            // Path to Archive Excel file - need to determine exact path from the SharePoint link
+            // For now, assuming it's in the same folder as other content approval files
+            const archivePath = '/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Content Review Sheet Archive.xlsx';
+            try {
+                const archiveFile = await this.graphClient
+                    .api(`/sites/${this.siteId}/drive/root:${archivePath}`)
+                    .get();
+                this.archiveFileId = archiveFile.id;
+            } catch (error) {
+                console.log('Archive Excel file not found at expected path, will need to be created or path updated');
+                this.archiveFileId = null;
+            }
+
+            // Path to Archives folder
+            const archivesFolderPath = '/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Archives';
+            try {
+                const archivesFolder = await this.graphClient
+                    .api(`/sites/${this.siteId}/drive/root:${archivesFolderPath}`)
+                    .get();
+                this.archivesFolderId = archivesFolder.id;
+            } catch (error) {
+                // Create Archives folder if it doesn't exist
+                console.log('Archives folder not found, creating...');
+                const parentPath = '/General/MARKETING & COMMUNICATIONS/Projects/Content approval';
+                const parentFolder = await this.graphClient
+                    .api(`/sites/${this.siteId}/drive/root:${parentPath}`)
+                    .get();
+                
+                const newFolder = await this.graphClient
+                    .api(`/sites/${this.siteId}/drive/items/${parentFolder.id}/children`)
+                    .post({
+                        name: 'Archives',
+                        folder: {},
+                        '@microsoft.graph.conflictBehavior': 'rename'
+                    });
+                
+                this.archivesFolderId = newFolder.id;
+                console.log('Created Archives folder');
+            }
+
+            console.log('Archive service file IDs resolved:', { 
+                archiveFileId: this.archiveFileId, 
+                archivesFolderId: this.archivesFolderId 
+            });
+        } catch (error) {
+            console.error('Error resolving Archive service file IDs:', error);
+            throw error;
+        }
+    }
+
+    async getOrCreateSprintFolder(sprintName) {
+        try {
+            // Check if sprint folder already exists
+            const sprintFolderName = `Sprint_${sprintName}`;
+            
+            try {
+                const existingFolder = await this.graphClient
+                    .api(`/sites/${this.siteId}/drive/items/${this.archivesFolderId}/children`)
+                    .filter(`name eq '${sprintFolderName}'`)
+                    .get();
+                
+                if (existingFolder.value && existingFolder.value.length > 0) {
+                    console.log(`Sprint folder ${sprintFolderName} already exists`);
+                    return existingFolder.value[0].id;
+                }
+            } catch (error) {
+                console.log('Error checking for existing sprint folder:', error);
+            }
+
+            // Create new sprint folder
+            const newFolder = await this.graphClient
+                .api(`/sites/${this.siteId}/drive/items/${this.archivesFolderId}/children`)
+                .post({
+                    name: sprintFolderName,
+                    folder: {},
+                    '@microsoft.graph.conflictBehavior': 'rename'
+                });
+
+            console.log(`Created new sprint folder: ${sprintFolderName}`);
+            return newFolder.id;
+        } catch (error) {
+            console.error(`Error creating sprint folder for ${sprintName}:`, error);
+            throw error;
+        }
+    }
+
+    async copyFileToArchive(fileId, fileName, sprintFolderId) {
+        try {
+            console.log(`Copying file ${fileName} to archive...`);
+            
+            // Get the original file to copy
+            const originalFile = await this.graphClient
+                .api(`/sites/${this.siteId}/drive/items/${fileId}`)
+                .get();
+
+            // Create a copy in the sprint folder
+            const copyRequest = {
+                parentReference: {
+                    id: sprintFolderId
+                },
+                name: fileName
+            };
+
+            const copyResponse = await this.graphClient
+                .api(`/sites/${this.siteId}/drive/items/${fileId}/copy`)
+                .post(copyRequest);
+
+            // The copy operation is asynchronous, need to poll for completion
+            // For now, we'll return the expected new file info
+            console.log(`File ${fileName} copy initiated`);
+            
+            // Return the expected new file URL (we'll need to construct this)
+            // The actual URL will be available once the copy completes
+            return {
+                copyInitiated: true,
+                originalFileId: fileId,
+                fileName: fileName,
+                sprintFolderId: sprintFolderId
+            };
+        } catch (error) {
+            console.error(`Error copying file ${fileName}:`, error);
+            throw error;
+        }
+    }
+
+    async getNewFileUrl(fileName, sprintFolderId) {
+        try {
+            // Get the sprint folder details to construct the path
+            const sprintFolder = await this.graphClient
+                .api(`/sites/${this.siteId}/drive/items/${sprintFolderId}`)
+                .get();
+
+            // Look for the copied file in the sprint folder
+            const files = await this.graphClient
+                .api(`/sites/${this.siteId}/drive/items/${sprintFolderId}/children`)
+                .filter(`name eq '${fileName}'`)
+                .get();
+
+            if (files.value && files.value.length > 0) {
+                return files.value[0].webUrl;
+            } else {
+                // File might still be copying, return a constructed URL
+                console.log(`File ${fileName} not found yet in sprint folder, copy might still be in progress`);
+                return null;
+            }
+        } catch (error) {
+            console.error(`Error getting new file URL for ${fileName}:`, error);
+            return null;
+        }
+    }
+
+    async addRowsToArchiveSheet(rows, tableName) {
+        try {
+            if (!this.archiveFileId) {
+                throw new Error('Archive Excel file not found. Please ensure the Content Review Sheet Archive.xlsx exists.');
+            }
+
+            console.log(`Adding ${rows.length} rows to archive sheet table ${tableName}`);
+
+            for (const row of rows) {
+                try {
+                    // Add archive-specific metadata
+                    const archiveRow = [
+                        ...row.values[0], // Original row data
+                        new Date().toISOString(), // Archive Date
+                        tableName // Source Table
+                    ];
+
+                    await this.graphClient
+                        .api(`/sites/${this.siteId}/drive/items/${this.archiveFileId}/workbook/tables/${tableName}_Archive/rows`)
+                        .post({
+                            values: [archiveRow]
+                        });
+                    
+                    console.log(`Added row to archive: ${row.values[0][1]}`); // File name
+                } catch (error) {
+                    console.error(`Error adding row to archive:`, error);
+                    throw error;
+                }
+            }
+
+            console.log(`Successfully added all rows to archive sheet`);
+        } catch (error) {
+            console.error('Error adding rows to archive sheet:', error);
+            throw error;
+        }
+    }
+
+    async deleteRowsFromTable(excelService, tableName, rowsToDelete) {
+        try {
+            console.log(`Deleting ${rowsToDelete.length} rows from ${tableName}`);
+
+            // Sort rows by index in descending order to delete from bottom up
+            const sortedRows = rowsToDelete.sort((a, b) => b.index - a.index);
+
+            for (const row of sortedRows) {
+                try {
+                    const fileId = tableName === 'Step1_Review' ? excelService.step1FileId : excelService.mrlFileId;
+                    
+                    await excelService.graphClient
+                        .api(`/sites/${excelService.siteId}/drive/items/${fileId}/workbook/tables/${tableName}/rows/itemAt(index=${row.index})`)
+                        .delete();
+                    
+                    console.log(`Deleted row ${row.index} from ${tableName}`);
+                } catch (error) {
+                    console.error(`Error deleting row ${row.index} from ${tableName}:`, error);
+                    // Continue with other deletions even if one fails
+                }
+            }
+
+            console.log(`Completed deletion of rows from ${tableName}`);
+        } catch (error) {
+            console.error(`Error in deleteRowsFromTable:`, error);
+            throw error;
+        }
+    }
+
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+}
+
+module.exports = ArchiveService;

@@ -59,6 +59,11 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
   const [stats, setStats] = useState<ProcessingStat[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Archive functionality state
+  const [sprintName, setSprintName] = useState('');
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [archiveResult, setArchiveResult] = useState<any>(null);
 
   const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
 
@@ -266,6 +271,40 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
     }
   };
 
+  const archiveContent = async () => {
+    if (!user) return;
+    if (!sprintName.trim()) {
+      setError('Sprint name is required for archiving');
+      return;
+    }
+    
+    try {
+      setArchiveLoading(true);
+      setError(null);
+      setArchiveResult(null);
+      
+      console.log(`🗃️ Starting archive process for sprint: ${sprintName}`);
+      
+      const headers = await getAuthHeaders();
+      const response = await axios.post(`${backendUrl}/api/content-approval/archive`, 
+        { sprintName: sprintName.trim() }, 
+        { headers }
+      );
+      
+      console.log('✅ Archive process completed:', response.data);
+      setArchiveResult(response.data.results);
+      
+      // Clear the sprint name on success
+      setSprintName('');
+      
+    } catch (err: any) {
+      console.error('❌ Archive process failed:', err);
+      setError(err.response?.data?.details || err.response?.data?.error || 'Archive process failed');
+    } finally {
+      setArchiveLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (user) {
       fetchData();
@@ -462,6 +501,111 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
             Test SharePoint Permissions
           </button>
         </div>
+      </div>
+
+      {/* Archive Functionality */}
+      <div className="archive-section" style={{ marginBottom: '30px' }}>
+        <h3>Archive Content</h3>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '15px', 
+          flexWrap: 'wrap',
+          border: '1px solid #ddd',
+          padding: '15px',
+          borderRadius: '4px',
+          backgroundColor: '#f9f9f9'
+        }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+            <label htmlFor="sprintName" style={{ fontWeight: 'bold', fontSize: '14px' }}>
+              Sprint Name:
+            </label>
+            <input
+              id="sprintName"
+              type="text"
+              value={sprintName}
+              onChange={(e) => setSprintName(e.target.value)}
+              placeholder="Enter sprint name (e.g., 2024-Q4)"
+              disabled={archiveLoading}
+              style={{
+                padding: '8px 12px',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                fontSize: '14px',
+                minWidth: '200px'
+              }}
+            />
+          </div>
+          <button 
+            onClick={archiveContent} 
+            disabled={archiveLoading || !sprintName.trim()}
+            style={{ 
+              padding: '8px 16px', 
+              backgroundColor: archiveLoading ? '#ccc' : '#ff5722', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '4px',
+              cursor: (archiveLoading || !sprintName.trim()) ? 'not-allowed' : 'pointer',
+              opacity: (archiveLoading || !sprintName.trim()) ? 0.6 : 1,
+              minHeight: '36px'
+            }}
+          >
+            {archiveLoading ? '🗃️ Archiving...' : '🗃️ Archive Content'}
+          </button>
+        </div>
+        
+        <div style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>
+          <strong>Archive Process:</strong> Moves "Fast track" rows from Step1 Review and ALL rows from MCL Review to the archive sheet, 
+          copies files to Archives/{sprintName}/ folder, and updates file URLs.
+        </div>
+
+        {archiveResult && (
+          <div style={{ 
+            marginTop: '15px', 
+            padding: '15px', 
+            backgroundColor: '#e8f5e8', 
+            border: '1px solid #4caf50',
+            borderRadius: '4px'
+          }}>
+            <h4>Archive Results for Sprint: {archiveResult.sprintName}</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px' }}>
+              <div>
+                <strong>Step1_Review:</strong> {archiveResult.step1Rows.processed} rows archived
+              </div>
+              <div>
+                <strong>MCL_Review:</strong> {archiveResult.mclRows.processed} rows archived
+              </div>
+              <div>
+                <strong>Files Processed:</strong> {archiveResult.filesProcessed}
+              </div>
+              <div>
+                <strong>File Errors:</strong> {archiveResult.filesErrors.length}
+              </div>
+            </div>
+            
+            {archiveResult.filesErrors.length > 0 && (
+              <div style={{ marginTop: '10px' }}>
+                <strong>File Errors:</strong>
+                <ul style={{ margin: '5px 0', paddingLeft: '20px' }}>
+                  {archiveResult.filesErrors.map((error: any, index: number) => (
+                    <li key={index}>{error.fileName}: {error.error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            
+            <pre style={{ 
+              marginTop: '15px', 
+              fontSize: '12px', 
+              backgroundColor: '#f5f5f5', 
+              padding: '10px', 
+              borderRadius: '4px',
+              whiteSpace: 'pre-wrap' 
+            }}>
+              {archiveResult.summary}
+            </pre>
+          </div>
+        )}
       </div>
 
       {/* Service Status */}
