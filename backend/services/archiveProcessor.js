@@ -101,22 +101,25 @@ class ArchiveProcessor {
 
             // Step 5: Wait for file copies to complete and get new URLs
             console.log('Waiting for file copies to complete and updating URLs...');
-            await this.delay(5000); // Wait 5 seconds for copies to initiate
-
+            
             for (const fileOp of fileOperations) {
                 try {
-                    // Get the new file URL
-                    let newUrl = await this.archiveService.getNewFileUrl(fileOp.fileName, sprintFolderId);
-                    
-                    // If URL not available yet, construct expected URL
-                    if (!newUrl) {
-                        newUrl = `[Archive URL - Copy in progress for ${fileOp.fileName}]`;
+                    // Skip URL update if file already existed (and wasn't copied)
+                    if (fileOp.copyResult && fileOp.copyResult.alreadyExists) {
+                        // Get the URL of the existing file
+                        const existingUrl = await this.archiveService.getNewFileUrl(fileOp.fileName, sprintFolderId);
+                        fileOp.rowInfo.row.values[0][2] = existingUrl;
+                        console.log(`Updated URL for existing file ${fileOp.fileName}`);
+                        continue;
                     }
+                    
+                    // Get the new file URL with retry logic (waits for copy to complete)
+                    const newUrl = await this.archiveService.getNewFileUrl(fileOp.fileName, sprintFolderId);
 
                     // Update the URL in the row data
                     fileOp.rowInfo.row.values[0][2] = newUrl;
                     
-                    console.log(`Updated URL for ${fileOp.fileName}`);
+                    console.log(`Updated URL for ${fileOp.fileName}: ${newUrl}`);
                 } catch (error) {
                     console.error(`Error updating URL for ${fileOp.fileName}:`, error);
                     results.filesErrors.push({
@@ -215,17 +218,13 @@ class ArchiveProcessor {
     async getStep1RowsToArchive() {
         try {
             const allRows = await this.excelService.getAllTableRows('Step1_Review');
-            const fastTrackRows = [];
-
-            allRows.forEach((row, index) => {
-                // Status is in column 11 (0-indexed)
-                const status = row.values[0][11];
-                if (status && status.toLowerCase().includes('fast track')) {
-                    fastTrackRows.push({ row, index });
-                }
-            });
-
-            return fastTrackRows;
+            
+            // Return ALL rows with their index for archiving
+            // (Previously only returned Fast Track rows, but now we want all rows)
+            const allRowsWithIndex = allRows.map((row, index) => ({ row, index }));
+            
+            console.log(`Found ${allRowsWithIndex.length} Step1 rows (all rows will be archived)`);
+            return allRowsWithIndex;
         } catch (error) {
             console.error('Error getting Step1 rows to archive:', error);
             throw error;

@@ -192,29 +192,55 @@ class ArchiveService {
         }
     }
 
-    async getNewFileUrl(fileName, sprintFolderId) {
+    async getNewFileUrl(fileName, sprintFolderId, maxRetries = 10) {
         try {
-            // Get the sprint folder details to construct the path
+            console.log(`Getting new URL for ${fileName}...`);
+            
+            // Wait for the file copy to complete with retries
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    // Look for the copied file in the sprint folder
+                    const files = await this.graphClient
+                        .api(`/sites/${this.siteId}/drive/items/${sprintFolderId}/children`)
+                        .filter(`name eq '${fileName}'`)
+                        .get();
+
+                    if (files.value && files.value.length > 0) {
+                        const copiedFile = files.value[0];
+                        console.log(`✅ Found copied file ${fileName} after ${attempt} attempt(s)`);
+                        
+                        // Return the SharePoint web URL that will open the file directly
+                        return copiedFile.webUrl;
+                    } else {
+                        // File not found yet, wait and retry
+                        console.log(`Attempt ${attempt}/${maxRetries}: File ${fileName} not found yet, waiting...`);
+                        if (attempt < maxRetries) {
+                            await this.delay(2000); // Wait 2 seconds between attempts
+                        }
+                    }
+                } catch (searchError) {
+                    console.error(`Error searching for file on attempt ${attempt}:`, searchError.message);
+                    if (attempt < maxRetries) {
+                        await this.delay(2000);
+                    }
+                }
+            }
+            
+            // If we get here, the file wasn't found after all retries
+            console.log(`⚠️ File ${fileName} not found after ${maxRetries} attempts`);
+            
+            // Return a constructed URL as fallback (though it might not work)
             const sprintFolder = await this.graphClient
                 .api(`/sites/${this.siteId}/drive/items/${sprintFolderId}`)
                 .get();
-
-            // Look for the copied file in the sprint folder
-            const files = await this.graphClient
-                .api(`/sites/${this.siteId}/drive/items/${sprintFolderId}/children`)
-                .filter(`name eq '${fileName}'`)
-                .get();
-
-            if (files.value && files.value.length > 0) {
-                return files.value[0].webUrl;
-            } else {
-                // File might still be copying, return a constructed URL
-                console.log(`File ${fileName} not found yet in sprint folder, copy might still be in progress`);
-                return null;
-            }
+            
+            // Construct expected URL based on the sprint folder path
+            const baseUrl = sprintFolder.webUrl;
+            return `${baseUrl}/${fileName}`;
+            
         } catch (error) {
             console.error(`Error getting new file URL for ${fileName}:`, error);
-            return null;
+            return `[Error getting archive URL for ${fileName}]`;
         }
     }
 

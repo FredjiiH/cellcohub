@@ -959,6 +959,125 @@ app.get('/api/content-approval/stats', async (req, res) => {
   }
 });
 
+// Test archive resources access
+app.post('/api/content-approval/test-archive-access', async (req, res) => {
+  try {
+    console.log('Testing archive resources access...');
+    
+    // Extract access token from Authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'No valid authorization header' });
+    }
+    const accessToken = authHeader.substring(7);
+    
+    // Initialize archive service to test access
+    const ArchiveService = require('./services/archiveService');
+    const archiveService = new ArchiveService();
+    
+    archiveService.graphClientService.setAccessToken(accessToken);
+    archiveService.graphClient = archiveService.graphClientService.getClient();
+    
+    const results = {
+      archiveExcel: { found: false, path: null, id: null, error: null },
+      archiveFolder: { found: false, path: null, id: null, error: null },
+      tables: []
+    };
+    
+    // Test 1: Access to Archive Excel file
+    console.log('Testing archive Excel file access...');
+    const paths = [
+      '/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Content review sheet Archive.xlsx',
+      '/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Content Review Sheet Archive.xlsx',
+      '/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Content Review sheet Archive.xlsx'
+    ];
+    
+    for (const path of paths) {
+      try {
+        const siteUrl = 'cellcoab.sharepoint.com:/sites/MarketingSales';
+        const site = await archiveService.graphClient.api(`/sites/${siteUrl}`).get();
+        
+        const file = await archiveService.graphClient
+          .api(`/sites/${site.id}/drive/root:${path}`)
+          .get();
+        
+        results.archiveExcel.found = true;
+        results.archiveExcel.path = path;
+        results.archiveExcel.id = file.id;
+        console.log(`✅ Archive Excel found at: ${path}`);
+        
+        // Try to get tables from the Excel file
+        try {
+          const tables = await archiveService.graphClient
+            .api(`/sites/${site.id}/drive/items/${file.id}/workbook/tables`)
+            .get();
+          
+          results.tables = tables.value.map(t => ({ name: t.name, id: t.id }));
+          console.log(`✅ Found ${tables.value.length} tables in archive Excel`);
+        } catch (tableError) {
+          console.log('Could not retrieve tables:', tableError.message);
+        }
+        
+        break; // Found it, stop trying other paths
+      } catch (error) {
+        console.log(`Archive Excel not found at: ${path}`);
+      }
+    }
+    
+    if (!results.archiveExcel.found) {
+      results.archiveExcel.error = 'Archive Excel file not found at any known paths';
+    }
+    
+    // Test 2: Access to Archives folder
+    console.log('Testing archive folder access...');
+    const folderPath = '/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Archives';
+    
+    try {
+      const siteUrl = 'cellcoab.sharepoint.com:/sites/MarketingSales';
+      const site = await archiveService.graphClient.api(`/sites/${siteUrl}`).get();
+      
+      const folder = await archiveService.graphClient
+        .api(`/sites/${site.id}/drive/root:${folderPath}`)
+        .get();
+      
+      results.archiveFolder.found = true;
+      results.archiveFolder.path = folderPath;
+      results.archiveFolder.id = folder.id;
+      console.log(`✅ Archive folder found at: ${folderPath}`);
+      
+      // List contents of the folder
+      try {
+        const children = await archiveService.graphClient
+          .api(`/sites/${site.id}/drive/items/${folder.id}/children`)
+          .get();
+        
+        results.archiveFolder.contents = children.value.map(item => ({
+          name: item.name,
+          type: item.folder ? 'folder' : 'file'
+        }));
+        console.log(`Archive folder contains ${children.value.length} items`);
+      } catch (listError) {
+        console.log('Could not list folder contents:', listError.message);
+      }
+    } catch (error) {
+      results.archiveFolder.error = `Archive folder not accessible: ${error.message}`;
+      console.log(`❌ Archive folder error: ${error.message}`);
+    }
+    
+    res.json({
+      message: 'Archive access test complete',
+      results: results
+    });
+    
+  } catch (error) {
+    console.error('Error testing archive access:', error);
+    res.status(500).json({ 
+      error: 'Archive access test failed',
+      details: error.message 
+    });
+  }
+});
+
 // Archive content approval data
 app.post('/api/content-approval/archive', async (req, res) => {
   try {
