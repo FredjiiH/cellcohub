@@ -75,17 +75,8 @@ class WebPageReviewService {
     async getWebPagesToReview() {
         try {
             // Get all rows from the Web pages spreadsheet
-            // Assuming it has a table named "WebPages" or we'll use the first table
-            const tables = await this.graphClient
-                .api(`/sites/${this.siteId}/drive/items/${this.webPagesFileId}/workbook/tables`)
-                .get();
-            
-            if (!tables.value || tables.value.length === 0) {
-                throw new Error('No tables found in Web pages Ready to Review spreadsheet');
-            }
-
-            // Use the first table found
-            const tableName = tables.value[0].name;
+            // Use the specific table named "Web_pages"
+            const tableName = 'Web_pages';
             console.log(`Using table: ${tableName}`);
 
             const rows = await this.graphClient
