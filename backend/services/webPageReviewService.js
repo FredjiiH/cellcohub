@@ -203,25 +203,72 @@ class WebPageReviewService {
                 try {
                     let dateObj;
                     if (typeof date === 'number') {
-                        // Excel serial date - convert to JavaScript Date
-                        // Excel epoch starts at 1900-01-01, but has a leap year bug (day 60 = Feb 29, 1900)
-                        // JavaScript Date epoch starts at 1970-01-01
-                        // Formula: (excel_date - 25569) * 86400 * 1000
-                        dateObj = new Date((date - 25569) * 86400 * 1000);
-                        console.log('Converted Excel serial date to:', dateObj);
+                        // Check if this is a reasonable Excel serial date (should be between 1 and ~50000 for modern dates)
+                        if (date > 0 && date < 100000) {
+                            // Normal Excel serial date conversion
+                            let adjustedDate = date;
+                            if (date > 59) {
+                                adjustedDate = date - 1; // Account for Excel's leap year bug
+                            }
+                            dateObj = new Date(1900, 0, adjustedDate);
+                            console.log('Converted Excel serial date to:', dateObj);
+                        } else {
+                            // Large number - might be timestamp, YYYYMMDD format, or corrupted
+                            console.log('Large number detected, trying alternative formats...');
+                            
+                            // Try as timestamp (seconds)
+                            if (date > 1000000000 && date < 2000000000) {
+                                dateObj = new Date(date * 1000);
+                                console.log('Interpreted as Unix timestamp:', dateObj);
+                            }
+                            // Try parsing first 8 digits as YYYYMMDD
+                            else if (String(date).length >= 8) {
+                                const dateStr = String(date).substring(0, 8);
+                                const year = parseInt(dateStr.substring(0, 4));
+                                const month = parseInt(dateStr.substring(4, 6));
+                                const day = parseInt(dateStr.substring(6, 8));
+                                
+                                if (year >= 1900 && year <= 2100 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+                                    dateObj = new Date(year, month - 1, day);
+                                    console.log('Interpreted as YYYYMMDD format:', dateObj);
+                                }
+                            }
+                            
+                            // If still no valid date, try as milliseconds
+                            if (!dateObj || isNaN(dateObj.getTime())) {
+                                dateObj = new Date(date);
+                                console.log('Tried as milliseconds timestamp:', dateObj);
+                            }
+                        }
                     } else if (date instanceof Date) {
                         dateObj = date;
                     } else {
-                        dateObj = new Date(String(date));
+                        // Try parsing string
+                        const dateStr = String(date).trim();
+                        console.log('Parsing string date:', dateStr);
+                        
+                        // Try YYYYMMDD format first
+                        if (/^\d{8}$/.test(dateStr)) {
+                            const year = parseInt(dateStr.substring(0, 4));
+                            const month = parseInt(dateStr.substring(4, 6));
+                            const day = parseInt(dateStr.substring(6, 8));
+                            dateObj = new Date(year, month - 1, day);
+                            console.log('Parsed YYYYMMDD string:', dateObj);
+                        } else {
+                            dateObj = new Date(dateStr);
+                            console.log('Parsed general string:', dateObj);
+                        }
                     }
                     
-                    if (!isNaN(dateObj.getTime())) {
+                    if (dateObj && !isNaN(dateObj.getTime())) {
                         const year = dateObj.getFullYear();
                         const month = String(dateObj.getMonth() + 1).padStart(2, '0');
                         const day = String(dateObj.getDate()).padStart(2, '0');
                         formattedDate = `${year}${month}${day}`;
                         readableDate = `${year}-${month}-${day}`;
                         console.log('Final formatted date:', formattedDate, 'Readable:', readableDate);
+                    } else {
+                        console.log('Could not parse date, using fallback');
                     }
                 } catch (e) {
                     console.log('Date formatting error, using fallback:', e.message);
