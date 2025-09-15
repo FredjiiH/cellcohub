@@ -114,22 +114,30 @@ class WebPageReviewService {
             
             // Get all headings
             $('h1, h2, h3, h4, h5, h6').each((i, elem) => {
-                const rawText = $(elem).text();
-                const text = rawText ? String(rawText).trim() : '';
-                if (text) {
-                    content.headings.push({
-                        level: elem.name,
-                        text: text
-                    });
+                try {
+                    const rawText = $(elem).text();
+                    const text = rawText ? String(rawText).trim() : '';
+                    if (text) {
+                        content.headings.push({
+                            level: elem.name,
+                            text: text
+                        });
+                    }
+                } catch (e) {
+                    console.error(`Error extracting heading text: ${e.message}`);
                 }
             });
             
             // Get paragraphs
             $('p').each((i, elem) => {
-                const rawText = $(elem).text();
-                const text = rawText ? String(rawText).trim() : '';
-                if (text && text.length > 20) { // Filter out very short paragraphs
-                    content.paragraphs.push(text);
+                try {
+                    const rawText = $(elem).text();
+                    const text = rawText ? String(rawText).trim() : '';
+                    if (text && text.length > 20) { // Filter out very short paragraphs
+                        content.paragraphs.push(text);
+                    }
+                } catch (e) {
+                    console.error(`Error extracting paragraph text: ${e.message}`);
                 }
             });
             
@@ -137,10 +145,14 @@ class WebPageReviewService {
             $('ul, ol').each((i, elem) => {
                 const items = [];
                 $(elem).find('li').each((j, li) => {
-                    const rawText = $(li).text();
-                    const text = rawText ? String(rawText).trim() : '';
-                    if (text) {
-                        items.push(text);
+                    try {
+                        const rawText = $(li).text();
+                        const text = rawText ? String(rawText).trim() : '';
+                        if (text) {
+                            items.push(text);
+                        }
+                    } catch (e) {
+                        console.error(`Error extracting list item text: ${e.message}`);
                     }
                 });
                 if (items.length > 0) {
@@ -182,7 +194,9 @@ class WebPageReviewService {
             if (date) {
                 if (typeof date === 'string') {
                     // If it's already a string, just remove slashes
-                    formattedDate = date.replace(/\//g, '').replace(/-/g, '');
+                    // Double-check it's really a string to be safe
+                    const dateStr = String(date);
+                    formattedDate = dateStr.replace(/\//g, '').replace(/-/g, '');
                 } else if (date instanceof Date) {
                     // If it's a Date object, format it
                     formattedDate = date.toISOString().slice(0, 10).replace(/-/g, '');
