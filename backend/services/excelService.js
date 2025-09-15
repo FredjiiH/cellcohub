@@ -4,6 +4,9 @@ class ExcelService {
     constructor() {
         this.graphClientService = new GraphClientService();
         this.graphClient = null; // Will be initialized when access token is set
+
+        // Deployment verification - DEPLOYED VERSION 2025-09-15-v2
+        console.log('🚀 ExcelService initialized - Version 2025-09-15-v2 with comment formatting fixes');
         
         // SharePoint site and file configuration
         this.siteId = null; // Will be resolved from site URL
@@ -150,8 +153,8 @@ class ExcelService {
             // Try to preserve/restore dropdown validation for Status and Priority columns
             await this.preserveDataValidation(tableName, fileId);
             
-            // Format comment columns on every row addition for reliability
-            console.log(`🎨 Formatting comment columns for ${tableName}...`);
+            // Format comment columns on every row addition for reliability (V2 FIX)
+            console.log(`🎨 V2 FIX: Formatting comment columns for ${tableName}...`);
             await this.formatCommentColumns(tableName, fileId);
             
             return response;
