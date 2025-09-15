@@ -363,11 +363,14 @@ class WebPageReviewService {
             };
             
             for (const pageData of webPages) {
+                // Define url outside try block so it's accessible in catch
+                let url = 'Unknown URL';
+                
                 try {
                     const rawUrl = pageData.values[0][0]; // First column is URL
                     
                     // Ensure URL is a string
-                    const url = rawUrl ? String(rawUrl).trim() : '';
+                    url = rawUrl ? String(rawUrl).trim() : '';
                     
                     if (!url || url === '') {
                         console.log('Skipping row with empty URL');
@@ -397,7 +400,7 @@ class WebPageReviewService {
                 } catch (error) {
                     console.error(`Error processing web page:`, error);
                     results.errors.push({
-                        url: url || 'Unknown URL',
+                        url: url,
                         error: error.message
                     });
                 }
