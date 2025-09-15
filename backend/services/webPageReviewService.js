@@ -167,6 +167,13 @@ class WebPageReviewService {
             // Columns: URL, Purpose, Descriptive Name, Target Audience, Date, Version
             const [url, purpose, descriptiveName, targetAudience, date, version] = pageData.values[0];
             
+            // Ensure all text fields are strings
+            const safeUrl = url ? String(url) : '';
+            const safePurpose = purpose ? String(purpose) : 'Unknown';
+            const safeDescriptiveName = descriptiveName ? String(descriptiveName) : 'Unknown';
+            const safeTargetAudience = targetAudience ? String(targetAudience) : 'Unknown';
+            const safeVersion = version ? String(version) : 'V1';
+            
             // Handle date formatting - Excel might return Date object, number, or string
             let formattedDate;
             if (date) {
@@ -189,7 +196,7 @@ class WebPageReviewService {
                 formattedDate = new Date().toISOString().slice(0, 10).replace(/-/g, '');
             }
             
-            const fileName = `${purpose} - ${targetAudience} - ${descriptiveName} - ${formattedDate} - ${version}.docx`;
+            const fileName = `${safePurpose} - ${safeTargetAudience} - ${safeDescriptiveName} - ${formattedDate} - ${safeVersion}.docx`;
             
             console.log(`Creating Word document: ${fileName}`);
             
@@ -198,7 +205,7 @@ class WebPageReviewService {
             
             // Add document properties
             docx.setDocSubject('Web Page Review');
-            docx.setDocKeywords(['review', 'web page', purpose, targetAudience]);
+            docx.setDocKeywords(['review', 'web page', safePurpose, safeTargetAudience]);
             
             // Add header with URL
             let pObj = docx.createP();
@@ -206,20 +213,20 @@ class WebPageReviewService {
             
             pObj = docx.createP();
             pObj.addText('URL: ', { bold: true });
-            pObj.addText(url, { color: '0000FF', underline: true });
+            pObj.addText(safeUrl, { color: '0000FF', underline: true });
             
             // Add metadata
             pObj = docx.createP();
             pObj.addText('Purpose: ', { bold: true });
-            pObj.addText(purpose || 'Not specified');
+            pObj.addText(safePurpose);
             
             pObj = docx.createP();
             pObj.addText('Target Audience: ', { bold: true });
-            pObj.addText(targetAudience || 'Not specified');
+            pObj.addText(safeTargetAudience);
             
             pObj = docx.createP();
             pObj.addText('Descriptive Name: ', { bold: true });
-            pObj.addText(descriptiveName || 'Not specified');
+            pObj.addText(safeDescriptiveName);
             
             pObj = docx.createP();
             pObj.addText('Date: ', { bold: true });
@@ -239,7 +246,7 @@ class WebPageReviewService {
             
             pObj = docx.createP();
             pObj.addText('Version: ', { bold: true });
-            pObj.addText(version || 'Not specified');
+            pObj.addText(safeVersion);
             
             // Add separator
             pObj = docx.createP();
