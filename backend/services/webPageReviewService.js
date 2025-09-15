@@ -222,7 +222,7 @@ class WebPageReviewService {
             
             // Add document properties
             docx.setDocSubject('Web Page Review');
-            docx.setDocKeywords(['review', 'web page', safePurpose, safeTargetAudience]);
+            docx.setDocKeywords(['review', 'web page', String(safePurpose), String(safeTargetAudience)]);
             
             // Add header with URL
             let pObj = docx.createP();
