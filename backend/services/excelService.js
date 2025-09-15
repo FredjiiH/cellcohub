@@ -5,8 +5,8 @@ class ExcelService {
         this.graphClientService = new GraphClientService();
         this.graphClient = null; // Will be initialized when access token is set
 
-        // Deployment verification - DEPLOYED VERSION 2025-09-15-v8-WORKSHEET-RANGE-API
-        console.log('🚀 ExcelService initialized - Version 2025-09-15-v8 - Using worksheet range API for comment column formatting instead of table API');
+        // Deployment verification - DEPLOYED VERSION 2025-09-15-v9-DEBUG-LOGGING
+        console.log('🚀 ExcelService initialized - Version 2025-09-15-v9 - Added detailed debug logging to trace formatting execution');
         
         // SharePoint site and file configuration
         this.siteId = null; // Will be resolved from site URL
@@ -165,7 +165,9 @@ class ExcelService {
             await this.preserveDataValidation(tableName, fileId);
             
             // Format comment columns using worksheet range API (more reliable than table API)
+            console.log(`🎨 CALLING formatCommentColumnsViaWorksheet for ${tableName} with fileId ${fileId}`);
             await this.formatCommentColumnsViaWorksheet(tableName, fileId);
+            console.log(`🎨 COMPLETED formatCommentColumnsViaWorksheet for ${tableName}`);
             
             return response;
         } catch (error) {
@@ -752,6 +754,7 @@ class ExcelService {
 
     async formatCommentColumnsViaWorksheet(tableName, fileId) {
         try {
+            console.log(`🎨 formatCommentColumnsViaWorksheet ENTRY: tableName=${tableName}, fileId=${fileId}`);
             console.log(`🎨 Formatting comment columns via worksheet API for ${tableName}...`);
 
             // Define comment columns and their approximate column letters for each table
