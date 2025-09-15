@@ -36,7 +36,7 @@ class SharePointService {
     async resolveFolderIds() {
         try {
             // Ready to Review folder
-            const readyToReviewPath = '/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Ready to Review';
+            const readyToReviewPath = '/General/MARKETING & COMMUNICATIONS/Projects/Content approval/Ready to Review/Files Ready to Review';
             const readyFolder = await this.graphClient
                 .api(`/sites/${this.siteId}/drive/root:${readyToReviewPath}`)
                 .get();
