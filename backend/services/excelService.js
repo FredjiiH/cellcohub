@@ -11,8 +11,8 @@ class ExcelService {
         this.step1FileId = null; // Content_Review_step1.xlsx
         this.mrlFileId = null; // Content Review sheet Medical Regulatory and Legal.xlsx
         
-        // Track which tables have been formatted in this session
-        this.formattedTables = new Set();
+        // Track which tables have been formatted in this session (removed for reliability)
+        // this.formattedTables = new Set();
     }
 
     async initialize() {
@@ -150,16 +150,9 @@ class ExcelService {
             // Try to preserve/restore dropdown validation for Status and Priority columns
             await this.preserveDataValidation(tableName, fileId);
             
-            // Format comment columns if not already done in this session
-            console.log(`🔍 Checking if ${tableName} needs formatting. Already formatted tables:`, Array.from(this.formattedTables));
-            if (!this.formattedTables.has(tableName)) {
-                console.log(`🎨 First row added to ${tableName}, formatting comment columns...`);
-                await this.formatCommentColumns(tableName, fileId);
-                this.formattedTables.add(tableName);
-                console.log(`✅ Added ${tableName} to formatted tables list`);
-            } else {
-                console.log(`⏭️ Skipping formatting for ${tableName} - already done in this session`);
-            }
+            // Format comment columns on every row addition for reliability
+            console.log(`🎨 Formatting comment columns for ${tableName}...`);
+            await this.formatCommentColumns(tableName, fileId);
             
             return response;
         } catch (error) {
@@ -368,8 +361,10 @@ class ExcelService {
                 };
 
                 await this.graphClient
-                    .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/worksheets/Sheet1/range(address='${range}')/dataValidation`)
-                    .put(validationRule);
+                    .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/worksheets/Sheet1/range(address='${range}')`)
+                    .patch({
+                        dataValidation: validationRule
+                    });
 
                 console.log(`✅ Successfully applied ${columnName} validation using named range ${namedRangeName}`);
                 
@@ -390,8 +385,10 @@ class ExcelService {
                 };
 
                 await this.graphClient
-                    .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/worksheets/Sheet1/range(address='${range}')/dataValidation`)
-                    .put(validationRule);
+                    .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/worksheets/Sheet1/range(address='${range}')`)
+                    .patch({
+                        dataValidation: validationRule
+                    });
 
                 console.log(`✅ Successfully applied ${columnName} validation using direct list`);
             }
