@@ -1126,6 +1126,47 @@ app.post('/api/content-approval/archive', async (req, res) => {
   }
 });
 
+// Process web pages for review
+app.post('/api/content-approval/process-web-pages', async (req, res) => {
+  try {
+    console.log('Web page review process triggered');
+    
+    // Extract access token from Authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'No valid authorization header' });
+    }
+    const accessToken = authHeader.substring(7);
+    
+    // Import and initialize the web page review service
+    const WebPageReviewService = require('./services/webPageReviewService');
+    const webPageReviewService = new WebPageReviewService();
+    
+    // Set access token and initialize
+    webPageReviewService.graphClientService.setAccessToken(accessToken);
+    webPageReviewService.graphClient = webPageReviewService.graphClientService.getClient();
+    
+    await webPageReviewService.initialize();
+    
+    // Process web pages
+    const results = await webPageReviewService.processWebPages();
+    
+    console.log('Web page review process completed');
+    res.json({
+      success: true,
+      results: results
+    });
+    
+  } catch (error) {
+    console.error('Error in web page review process:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Web page review process failed',
+      details: error.message 
+    });
+  }
+});
+
 // Get user permissions
 app.get('/api/user/permissions', async (req, res) => {
   try {

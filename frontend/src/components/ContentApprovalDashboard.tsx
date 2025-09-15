@@ -65,6 +65,10 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
   const [archiveLoading, setArchiveLoading] = useState(false);
   const [archiveResult, setArchiveResult] = useState<any>(null);
 
+  // Web page review functionality state
+  const [webPageReviewLoading, setWebPageReviewLoading] = useState(false);
+  const [webPageReviewResult, setWebPageReviewResult] = useState<any>(null);
+
   const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
 
   const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -305,6 +309,36 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
     }
   };
 
+  const handleWebPageReview = async () => {
+    if (!user) {
+      setError('You must be logged in to process web page reviews');
+      return;
+    }
+    
+    try {
+      setWebPageReviewLoading(true);
+      setError(null);
+      setWebPageReviewResult(null);
+      
+      console.log('🌐 Starting web page review process...');
+      
+      const headers = await getAuthHeaders();
+      const response = await axios.post(`${backendUrl}/api/content-approval/process-web-pages`, 
+        {},
+        { headers }
+      );
+      
+      console.log('✅ Web page review process completed:', response.data);
+      setWebPageReviewResult(response.data.results);
+      
+    } catch (err: any) {
+      console.error('❌ Web page review process failed:', err);
+      setError(err.response?.data?.details || err.response?.data?.error || 'Web page review process failed');
+    } finally {
+      setWebPageReviewLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (user) {
       fetchData();
@@ -449,6 +483,84 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
             Refresh
           </button>
         </div>
+      </div>
+
+      {/* Web Page Review Functionality */}
+      <div className="web-page-review-section" style={{ marginBottom: '30px' }}>
+        <h3>Web Page Review Processing</h3>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '15px', 
+          flexWrap: 'wrap',
+          backgroundColor: '#f9f9f9',
+          padding: '15px',
+          borderRadius: '4px',
+          border: '1px solid #e0e0e0'
+        }}>
+          <button
+            onClick={handleWebPageReview}
+            disabled={webPageReviewLoading}
+            style={{
+              padding: '10px 20px',
+              fontSize: '14px',
+              backgroundColor: webPageReviewLoading ? '#ccc' : '#17a2b8',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: webPageReviewLoading ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {webPageReviewLoading ? '🌐 Processing Web Pages...' : '🌐 Process Web Page Reviews'}
+          </button>
+        </div>
+        
+        <div style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>
+          <strong>Process Description:</strong> Reads web pages from "Web pages Ready to Review.xlsx", 
+          scrapes content from each URL, and creates Word documents in the "Files Ready to Review" folder 
+          for manual review and commenting.
+        </div>
+
+        {webPageReviewResult && (
+          <div style={{ 
+            marginTop: '15px', 
+            padding: '15px', 
+            backgroundColor: webPageReviewResult.errors?.length > 0 ? '#fff3cd' : '#d4edda', 
+            border: `1px solid ${webPageReviewResult.errors?.length > 0 ? '#ffc107' : '#28a745'}`,
+            borderRadius: '4px'
+          }}>
+            <h4>Web Page Review Results</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px', marginTop: '10px' }}>
+              <div>
+                <strong>Pages Processed:</strong> {webPageReviewResult.processed}
+              </div>
+              {webPageReviewResult.errors?.length > 0 && (
+                <div>
+                  <strong>Errors:</strong> {webPageReviewResult.errors.length}
+                  <ul style={{ marginTop: '5px' }}>
+                    {webPageReviewResult.errors.map((err: any, index: number) => (
+                      <li key={index} style={{ color: '#dc3545' }}>
+                        {err.url}: {err.error}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {webPageReviewResult.files?.length > 0 && (
+                <div>
+                  <strong>Files Created:</strong>
+                  <ul style={{ marginTop: '5px' }}>
+                    {webPageReviewResult.files.map((file: any, index: number) => (
+                      <li key={index} style={{ color: '#28a745' }}>
+                        {file.fileName} (from {file.url})
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Manual Triggers */}

@@ -12,13 +12,16 @@
     "@azure/msal-node": "^3.7.1",
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "body-parser": "^2.2.0",
+    "cheerio": "^1.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.0",
     "express": "^5.1.0",
     "isomorphic-fetch": "^3.0.0",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.0.1",
-    "mongodb": "^6.18.0"
+    "mongodb": "^6.18.0",
+    "node-fetch": "^2.7.0",
+    "officegen": "^0.6.5"
   },
   "engines": {
     "node": ">=16.0.0"
