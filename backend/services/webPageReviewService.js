@@ -167,8 +167,28 @@ class WebPageReviewService {
             // Columns: URL, Purpose, Descriptive Name, Target Audience, Date, Version
             const [url, purpose, descriptiveName, targetAudience, date, version] = pageData.values[0];
             
-            // Generate filename using naming convention
-            const formattedDate = date ? date.replace(/\//g, '') : new Date().toISOString().slice(0, 10).replace(/-/g, '');
+            // Handle date formatting - Excel might return Date object, number, or string
+            let formattedDate;
+            if (date) {
+                if (typeof date === 'string') {
+                    // If it's already a string, just remove slashes
+                    formattedDate = date.replace(/\//g, '').replace(/-/g, '');
+                } else if (date instanceof Date) {
+                    // If it's a Date object, format it
+                    formattedDate = date.toISOString().slice(0, 10).replace(/-/g, '');
+                } else if (typeof date === 'number') {
+                    // If it's an Excel serial date number, convert it
+                    const excelDate = new Date((date - 25569) * 86400 * 1000); // Excel epoch is 1900-01-01
+                    formattedDate = excelDate.toISOString().slice(0, 10).replace(/-/g, '');
+                } else {
+                    // Fallback to current date
+                    formattedDate = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+                }
+            } else {
+                // No date provided, use current date
+                formattedDate = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+            }
+            
             const fileName = `${purpose} - ${targetAudience} - ${descriptiveName} - ${formattedDate} - ${version}.docx`;
             
             console.log(`Creating Word document: ${fileName}`);
@@ -203,7 +223,19 @@ class WebPageReviewService {
             
             pObj = docx.createP();
             pObj.addText('Date: ', { bold: true });
-            pObj.addText(date || 'Not specified');
+            // Format date for display
+            let displayDate = 'Not specified';
+            if (date) {
+                if (typeof date === 'string') {
+                    displayDate = date;
+                } else if (date instanceof Date) {
+                    displayDate = date.toLocaleDateString();
+                } else if (typeof date === 'number') {
+                    const excelDate = new Date((date - 25569) * 86400 * 1000);
+                    displayDate = excelDate.toLocaleDateString();
+                }
+            }
+            pObj.addText(displayDate);
             
             pObj = docx.createP();
             pObj.addText('Version: ', { bold: true });
