@@ -5,8 +5,8 @@ class ExcelService {
         this.graphClientService = new GraphClientService();
         this.graphClient = null; // Will be initialized when access token is set
 
-        // Deployment verification - DEPLOYED VERSION 2025-09-15-v3-FORCED
-        console.log('🚀 ExcelService initialized - Version 2025-09-15-v3-FORCED with comment formatting fixes');
+        // Deployment verification - DEPLOYED VERSION 2025-09-15-v4-TABLE-API-FIX
+        console.log('🚀 ExcelService initialized - Version 2025-09-15-v4 - Fixed table column formatting using proper table API endpoints');
         
         // SharePoint site and file configuration
         this.siteId = null; // Will be resolved from site URL
@@ -324,57 +324,24 @@ class ExcelService {
     async applyColumnValidation(tableName, fileId, columnName, columnIndex) {
         try {
             console.log(`🔄 Applying ${columnName} validation...`);
-            
-            const columnLetter = this.getColumnLetter(columnIndex);
-            
-            // Since you mentioned using named ranges in Name Manager, let's try that approach first
-            const namedRangeName = `${columnName}_Options`;
-            
-            let validationSource;
-            let options;
-            
+
             // Define validation options based on column
+            let options;
             if (columnName === 'Status') {
-                options = tableName === 'Step1_Review' 
+                options = tableName === 'Step1_Review'
                     ? ['Pending Michael Review', 'Need MCL Review', 'Fast track', 'Rejected']
                     : ['In Progress', 'Completed', 'On Hold'];
-                validationSource = namedRangeName; // Try named range first
             } else if (columnName === 'Priority') {
                 options = ['Low', 'Normal', 'High', 'Urgent'];
-                validationSource = namedRangeName; // Try named range first
             } else {
                 return;
             }
 
-            // Apply to a large range to cover current and future rows (excluding header)
-            const range = `${columnLetter}2:${columnLetter}1000`;
-            
             try {
-                // First try using the named range
-                const validationRule = {
-                    type: 'List',
-                    source: `=${namedRangeName}`, // Reference the named range
-                    allowBlank: columnName === 'Priority', // Allow blank for Priority but not Status
-                    showInputMessage: true,
-                    inputTitle: columnName,
-                    inputMessage: `Select a ${columnName.toLowerCase()} from the dropdown`,
-                    showErrorMessage: true,
-                    errorTitle: `Invalid ${columnName}`, 
-                    errorMessage: `Please choose a valid ${columnName.toLowerCase()} option`
-                };
+                // Try to apply validation using the table column's data body range
+                const apiUrl = `/sites/${this.siteId}/drive/items/${fileId}/workbook/tables/${tableName}/columns('${columnName}')/dataBodyRange`;
+                console.log(`📡 Applying validation via table column API: ${apiUrl}`);
 
-                await this.graphClient
-                    .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/worksheets/Sheet1/range(address='${range}')`)
-                    .patch({
-                        dataValidation: validationRule
-                    });
-
-                console.log(`✅ Successfully applied ${columnName} validation using named range ${namedRangeName}`);
-                
-            } catch (namedRangeError) {
-                console.log(`Named range ${namedRangeName} not found, falling back to list values`);
-                
-                // Fallback to direct list values
                 const validationRule = {
                     type: 'List',
                     source: options.join(','),
@@ -383,19 +350,84 @@ class ExcelService {
                     inputTitle: columnName,
                     inputMessage: `Select a ${columnName.toLowerCase()} from the dropdown`,
                     showErrorMessage: true,
-                    errorTitle: `Invalid ${columnName}`, 
+                    errorTitle: `Invalid ${columnName}`,
                     errorMessage: `Please choose a valid ${columnName.toLowerCase()} option`
                 };
 
                 await this.graphClient
-                    .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/worksheets/Sheet1/range(address='${range}')`)
+                    .api(apiUrl)
                     .patch({
                         dataValidation: validationRule
                     });
 
-                console.log(`✅ Successfully applied ${columnName} validation using direct list`);
+                console.log(`✅ Successfully applied ${columnName} validation via table column API`);
+
+            } catch (tableApiError) {
+                console.log(`⚠️ Table column API failed, trying with column index...`);
+
+                try {
+                    // Try using column index instead of name
+                    const apiUrl = `/sites/${this.siteId}/drive/items/${fileId}/workbook/tables/${tableName}/columns/itemAt(index=${columnIndex})/dataBodyRange`;
+
+                    const validationRule = {
+                        type: 'List',
+                        source: options.join(','),
+                        allowBlank: columnName === 'Priority',
+                        showInputMessage: true,
+                        inputTitle: columnName,
+                        inputMessage: `Select a ${columnName.toLowerCase()} from the dropdown`,
+                        showErrorMessage: true,
+                        errorTitle: `Invalid ${columnName}`,
+                        errorMessage: `Please choose a valid ${columnName.toLowerCase()} option`
+                    };
+
+                    await this.graphClient
+                        .api(apiUrl)
+                        .patch({
+                            dataValidation: validationRule
+                        });
+
+                    console.log(`✅ Successfully applied ${columnName} validation using column index`);
+
+                } catch (indexError) {
+                    console.log(`⚠️ Column index approach failed, trying worksheet range...`);
+
+                    // Last resort: try to get table info and use worksheet range
+                    try {
+                        const tableInfo = await this.graphClient
+                            .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/tables/${tableName}`)
+                            .get();
+
+                        const worksheetName = tableInfo.worksheet?.name || 'Sheet1';
+                        const columnLetter = this.getColumnLetter(columnIndex);
+                        const range = `${columnLetter}2:${columnLetter}1000`;
+
+                        const validationRule = {
+                            type: 'List',
+                            source: options.join(','),
+                            allowBlank: columnName === 'Priority',
+                            showInputMessage: true,
+                            inputTitle: columnName,
+                            inputMessage: `Select a ${columnName.toLowerCase()} from the dropdown`,
+                            showErrorMessage: true,
+                            errorTitle: `Invalid ${columnName}`,
+                            errorMessage: `Please choose a valid ${columnName.toLowerCase()} option`
+                        };
+
+                        await this.graphClient
+                            .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/worksheets('${worksheetName}')/range(address='${range}')`)
+                            .patch({
+                                dataValidation: validationRule
+                            });
+
+                        console.log(`✅ Successfully applied ${columnName} validation using worksheet range`);
+
+                    } catch (worksheetError) {
+                        console.error(`❌ All attempts to apply ${columnName} validation failed:`, worksheetError.message);
+                    }
+                }
             }
-            
+
         } catch (error) {
             console.error(`❌ Error applying ${columnName} validation:`, error.message);
         }
@@ -467,78 +499,147 @@ class ExcelService {
     async formatCommentColumns(tableName, fileId) {
         try {
             console.log(`🎨 Formatting comment columns for ${tableName} with fileId: ${fileId}...`);
-            
+
             // Define comment columns for each table
             const commentColumnsByTable = {
                 'Step1_Review': ['Michael Comment'],
                 'MCL_Review': ['Michael Comment', 'Medical Comment', 'Regulatory Comment', 'Legal Comment']
             };
-            
+
             const commentColumns = commentColumnsByTable[tableName];
             console.log(`📊 Comment columns for ${tableName}:`, commentColumns);
-            
+
             if (!commentColumns) {
                 console.log(`❌ No comment columns defined for table ${tableName}`);
                 return;
             }
-            
+
             for (const columnName of commentColumns) {
                 const columnIndex = this.getColumnIndex(tableName, columnName);
                 console.log(`🔍 Column ${columnName}: index=${columnIndex}`);
-                
+
                 if (columnIndex !== undefined) {
-                    const columnLetter = this.getColumnLetter(columnIndex);
-                    console.log(`🎨 Formatting column ${columnName} (index: ${columnIndex}, letter: ${columnLetter}) in ${tableName}`);
-                    
+                    console.log(`🎨 Formatting column ${columnName} (index: ${columnIndex}) in table ${tableName}`);
+
                     try {
-                        // Apply text wrapping and formatting to the entire column
-                        const apiUrl = `/sites/${this.siteId}/drive/items/${fileId}/workbook/worksheets/Sheet1/range(address='${columnLetter}:${columnLetter}')`;
+                        // First, get the table range to determine actual data range
+                        const tableInfo = await this.graphClient
+                            .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/tables/${tableName}`)
+                            .get();
+
+                        console.log(`📊 Table ${tableName} range: ${tableInfo.address}`);
+
+                        // Get the specific column data range from the table
+                        const columnData = await this.graphClient
+                            .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/tables/${tableName}/columns('${columnName}')/dataBodyRange`)
+                            .get();
+
+                        console.log(`📍 Column ${columnName} data range: ${columnData.address}`);
+
+                        // Apply formatting to the column's data body range
+                        const apiUrl = `/sites/${this.siteId}/drive/items/${fileId}/workbook/tables/${tableName}/columns('${columnName}')/dataBodyRange`;
                         console.log(`📡 API call: PATCH ${apiUrl}`);
-                        
+
                         await this.graphClient
                             .api(apiUrl)
                             .patch({
                                 format: {
                                     wrapText: true,
-                                    rowHeight: 60
+                                    rowHeight: 60,
+                                    verticalAlignment: 'Top',
+                                    horizontalAlignment: 'Left'
                                 }
                             });
-                        
-                        console.log(`✅ Successfully formatted column ${columnName} (${columnLetter})`);
-                        
-                        // Small delay to prevent API throttling
-                        await this.delay(200);
-                        
-                    } catch (columnError) {
-                        console.error(`❌ Error formatting column ${columnName}:`, columnError.message);
-                        
-                        // Try alternative approach with specific range
+
+                        console.log(`✅ Successfully formatted column ${columnName} in table ${tableName}`);
+
+                        // Also try to format the header for this column
                         try {
-                            console.log(`🔄 Trying alternative formatting approach for ${columnName}...`);
-                            
-                            // Format a large range instead of entire column (rows 2-1000 to skip header)
                             await this.graphClient
-                                .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/worksheets/Sheet1/range(address='${columnLetter}2:${columnLetter}1000')`)
+                                .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/tables/${tableName}/columns('${columnName}')/headerRowRange`)
                                 .patch({
                                     format: {
                                         wrapText: true,
-                                        rowHeight: 60
+                                        verticalAlignment: 'Center',
+                                        horizontalAlignment: 'Center',
+                                        fill: {
+                                            color: '#F0F0F0'
+                                        }
                                     }
                                 });
-                            
-                            console.log(`✅ Alternative formatting successful for ${columnName}`);
-                            
+                            console.log(`✅ Also formatted header for ${columnName}`);
+                        } catch (headerError) {
+                            console.log(`⚠️ Could not format header for ${columnName}: ${headerError.message}`);
+                        }
+
+                        // Small delay to prevent API throttling
+                        await this.delay(200);
+
+                    } catch (columnError) {
+                        console.error(`❌ Error formatting column ${columnName}:`, columnError.message);
+
+                        // Try alternative approach using column index
+                        try {
+                            console.log(`🔄 Trying alternative formatting approach using column index for ${columnName}...`);
+
+                            // Use column index instead of name
+                            const apiUrl = `/sites/${this.siteId}/drive/items/${fileId}/workbook/tables/${tableName}/columns/itemAt(index=${columnIndex})/dataBodyRange`;
+                            console.log(`📡 Alternative API call: PATCH ${apiUrl}`);
+
+                            await this.graphClient
+                                .api(apiUrl)
+                                .patch({
+                                    format: {
+                                        wrapText: true,
+                                        rowHeight: 60,
+                                        verticalAlignment: 'Top',
+                                        horizontalAlignment: 'Left'
+                                    }
+                                });
+
+                            console.log(`✅ Alternative formatting successful for ${columnName} using index ${columnIndex}`);
+
                         } catch (altError) {
                             console.error(`❌ Alternative formatting also failed for ${columnName}:`, altError.message);
+
+                            // Last resort: try to get table address and format using worksheet range
+                            try {
+                                console.log(`🔄 Final attempt: Getting table info to use worksheet range...`);
+
+                                const tableInfo = await this.graphClient
+                                    .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/tables/${tableName}`)
+                                    .get();
+
+                                // Extract worksheet name from table info if available
+                                const worksheetName = tableInfo.worksheet?.name || 'Sheet1';
+                                const columnLetter = this.getColumnLetter(columnIndex);
+
+                                console.log(`📝 Using worksheet ${worksheetName}, column ${columnLetter}`);
+
+                                // Try to format using worksheet range
+                                await this.graphClient
+                                    .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/worksheets('${worksheetName}')/range(address='${columnLetter}2:${columnLetter}1000')`)
+                                    .patch({
+                                        format: {
+                                            wrapText: true,
+                                            rowHeight: 60
+                                        }
+                                    });
+
+                                console.log(`✅ Final attempt successful for ${columnName}`);
+
+                            } catch (finalError) {
+                                console.error(`❌ All formatting attempts failed for ${columnName}:`, finalError.message);
+                            }
                         }
                     }
                 } else {
                     console.log(`⚠️  Column ${columnName} not found in ${tableName}, skipping formatting`);
                 }
             }
-            
+
             console.log(`✅ Comment column formatting completed for ${tableName}`);
-            
+
         } catch (error) {
             console.error(`❌ Error formatting comment columns for ${tableName}:`, error.message);
             // Don't throw - formatting is nice-to-have, not critical
