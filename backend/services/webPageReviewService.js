@@ -216,6 +216,13 @@ class WebPageReviewService {
             const fileName = `${safePurpose} - ${safeTargetAudience} - ${safeDescriptiveName} - ${formattedDate} - ${safeVersion}.docx`;
             
             console.log(`Creating Word document: ${fileName}`);
+            console.log('Data types being used:', {
+                safePurpose: typeof safePurpose,
+                safeTargetAudience: typeof safeTargetAudience,
+                safeDescriptiveName: typeof safeDescriptiveName,
+                safeVersion: typeof safeVersion,
+                formattedDate: typeof formattedDate
+            });
             
             // Create a new Word document
             const docx = officegen('docx');
