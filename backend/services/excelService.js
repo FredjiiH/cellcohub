@@ -430,7 +430,7 @@ class ExcelService {
                 'Created': 9,                   // 10. Created
                 'Priority': 10,                 // 11. Priority
                 'Status': 11,                   // 12. Status
-                'Michael Comments': 12,         // 13. Michael Comments
+                'Michael Comment': 12,          // 13. Michael Comment
                 'Routed On': 13,                 // 14. Routed On (system)
                 'Last Action': 14,              // 15. Last Action (system)
                 'Error': 15                      // 16. Error (system)
@@ -470,7 +470,7 @@ class ExcelService {
             
             // Define comment columns for each table
             const commentColumnsByTable = {
-                'Step1_Review': ['Michael Comments'],
+                'Step1_Review': ['Michael Comment'],
                 'MCL_Review': ['Michael Comment', 'Medical Comment', 'Regulatory Comment', 'Legal Comment']
             };
             
