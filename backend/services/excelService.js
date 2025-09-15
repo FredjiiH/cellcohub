@@ -151,10 +151,14 @@ class ExcelService {
             await this.preserveDataValidation(tableName, fileId);
             
             // Format comment columns if not already done in this session
+            console.log(`🔍 Checking if ${tableName} needs formatting. Already formatted tables:`, Array.from(this.formattedTables));
             if (!this.formattedTables.has(tableName)) {
                 console.log(`🎨 First row added to ${tableName}, formatting comment columns...`);
                 await this.formatCommentColumns(tableName, fileId);
                 this.formattedTables.add(tableName);
+                console.log(`✅ Added ${tableName} to formatted tables list`);
+            } else {
+                console.log(`⏭️ Skipping formatting for ${tableName} - already done in this session`);
             }
             
             return response;
@@ -462,7 +466,7 @@ class ExcelService {
 
     async formatCommentColumns(tableName, fileId) {
         try {
-            console.log(`🎨 Formatting comment columns for ${tableName}...`);
+            console.log(`🎨 Formatting comment columns for ${tableName} with fileId: ${fileId}...`);
             
             // Define comment columns for each table
             const commentColumnsByTable = {
@@ -471,22 +475,28 @@ class ExcelService {
             };
             
             const commentColumns = commentColumnsByTable[tableName];
+            console.log(`📊 Comment columns for ${tableName}:`, commentColumns);
+            
             if (!commentColumns) {
-                console.log(`No comment columns defined for table ${tableName}`);
+                console.log(`❌ No comment columns defined for table ${tableName}`);
                 return;
             }
             
             for (const columnName of commentColumns) {
                 const columnIndex = this.getColumnIndex(tableName, columnName);
+                console.log(`🔍 Column ${columnName}: index=${columnIndex}`);
+                
                 if (columnIndex !== undefined) {
                     const columnLetter = this.getColumnLetter(columnIndex);
-                    
-                    console.log(`🎨 Formatting column ${columnName} (${columnLetter}) in ${tableName}`);
+                    console.log(`🎨 Formatting column ${columnName} (index: ${columnIndex}, letter: ${columnLetter}) in ${tableName}`);
                     
                     try {
                         // Apply text wrapping and formatting to the entire column
+                        const apiUrl = `/sites/${this.siteId}/drive/items/${fileId}/workbook/worksheets/Sheet1/range(address='${columnLetter}:${columnLetter}')`;
+                        console.log(`📡 API call: PATCH ${apiUrl}`);
+                        
                         await this.graphClient
-                            .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/worksheets/Sheet1/range(address='${columnLetter}:${columnLetter}')`)
+                            .api(apiUrl)
                             .patch({
                                 format: {
                                     wrapText: true,
