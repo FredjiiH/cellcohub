@@ -5,8 +5,8 @@ class ExcelService {
         this.graphClientService = new GraphClientService();
         this.graphClient = null; // Will be initialized when access token is set
 
-        // Deployment verification - DEPLOYED VERSION 2025-09-15-v5-NAMED-TABLES
-        console.log('🚀 ExcelService initialized - Version 2025-09-15-v5 - Using named validation tables (Status, Priority, MCLStatus, PriorityValues, RiskScale)');
+        // Deployment verification - DEPLOYED VERSION 2025-09-15-v6-FORMAT-FIX
+        console.log('🚀 ExcelService initialized - Version 2025-09-15-v6 - Fixed formatting errors and improved table discovery');
         
         // SharePoint site and file configuration
         this.siteId = null; // Will be resolved from site URL
@@ -87,13 +87,24 @@ class ExcelService {
             console.log(`- Values array length: ${values.length}`);
             console.log(`- Values:`, values);
             
-            // First, let's list all available tables
+            // First, let's list all available tables and worksheets
             try {
                 const allTables = await this.graphClient
                     .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/tables`)
                     .get();
                 console.log(`\n\n🚨🚨🚨 EXCEL TABLES FOUND 🚨🚨🚨`);
                 console.log(`📊 Available tables in Excel file:`, allTables.value.map(t => t.name));
+
+                // Also list worksheets to understand structure better
+                try {
+                    const worksheets = await this.graphClient
+                        .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/worksheets`)
+                        .get();
+                    console.log(`📑 Available worksheets:`, worksheets.value.map(w => w.name));
+                } catch (wsError) {
+                    console.log('Could not list worksheets:', wsError.message);
+                }
+
                 console.log(`🚨🚨🚨 END EXCEL TABLES 🚨🚨🚨\n\n`);
             } catch (tablesError) {
                 console.log('❌ Could not list tables:', tablesError.message);
@@ -599,18 +610,22 @@ class ExcelService {
 
                         console.log(`📍 Column ${columnName} data range: ${columnData.address}`);
 
+                        // Check if there's data to format
+                        if (!columnData.address || columnData.rowCount === 0) {
+                            console.log(`⚠️ No data rows to format in column ${columnName}`);
+                            continue;
+                        }
+
                         // Apply formatting to the column's data body range
                         const apiUrl = `/sites/${this.siteId}/drive/items/${fileId}/workbook/tables/${tableName}/columns('${columnName}')/dataBodyRange`;
                         console.log(`📡 API call: PATCH ${apiUrl}`);
 
+                        // Use simplified format object to avoid API errors
                         await this.graphClient
                             .api(apiUrl)
                             .patch({
                                 format: {
-                                    wrapText: true,
-                                    rowHeight: 60,
-                                    verticalAlignment: 'Top',
-                                    horizontalAlignment: 'Left'
+                                    wrapText: true
                                 }
                             });
 
@@ -653,10 +668,7 @@ class ExcelService {
                                 .api(apiUrl)
                                 .patch({
                                     format: {
-                                        wrapText: true,
-                                        rowHeight: 60,
-                                        verticalAlignment: 'Top',
-                                        horizontalAlignment: 'Left'
+                                        wrapText: true
                                     }
                                 });
 
@@ -679,13 +691,12 @@ class ExcelService {
 
                                 console.log(`📝 Using worksheet ${worksheetName}, column ${columnLetter}`);
 
-                                // Try to format using worksheet range
+                                // Try to format using worksheet range - simplified format
                                 await this.graphClient
                                     .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/worksheets('${worksheetName}')/range(address='${columnLetter}2:${columnLetter}1000')`)
                                     .patch({
                                         format: {
-                                            wrapText: true,
-                                            rowHeight: 60
+                                            wrapText: true
                                         }
                                     });
 
