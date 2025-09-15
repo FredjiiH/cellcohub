@@ -230,20 +230,20 @@ class WebPageReviewService {
             
             pObj = docx.createP();
             pObj.addText('URL: ', { bold: true });
-            pObj.addText(safeUrl, { color: '0000FF', underline: true });
+            pObj.addText(String(safeUrl), { color: '0000FF', underline: true });
             
             // Add metadata
             pObj = docx.createP();
             pObj.addText('Purpose: ', { bold: true });
-            pObj.addText(safePurpose);
+            pObj.addText(String(safePurpose));
             
             pObj = docx.createP();
             pObj.addText('Target Audience: ', { bold: true });
-            pObj.addText(safeTargetAudience);
+            pObj.addText(String(safeTargetAudience));
             
             pObj = docx.createP();
             pObj.addText('Descriptive Name: ', { bold: true });
-            pObj.addText(safeDescriptiveName);
+            pObj.addText(String(safeDescriptiveName));
             
             pObj = docx.createP();
             pObj.addText('Date: ', { bold: true });
@@ -259,11 +259,11 @@ class WebPageReviewService {
                     displayDate = excelDate.toLocaleDateString();
                 }
             }
-            pObj.addText(displayDate);
+            pObj.addText(String(displayDate));
             
             pObj = docx.createP();
             pObj.addText('Version: ', { bold: true });
-            pObj.addText(safeVersion);
+            pObj.addText(String(safeVersion));
             
             // Add separator
             pObj = docx.createP();
@@ -276,39 +276,39 @@ class WebPageReviewService {
             // Add title
             if (scrapedContent.title) {
                 pObj = docx.createP();
-                pObj.addText(`Page Title: ${scrapedContent.title}`, { italic: true });
+                pObj.addText(String(`Page Title: ${scrapedContent.title}`), { italic: true });
             }
             
             // Add error if scraping failed
             if (scrapedContent.error) {
                 pObj = docx.createP();
-                pObj.addText(`Error: ${scrapedContent.error}`, { color: 'FF0000' });
+                pObj.addText(String(`Error: ${scrapedContent.error}`), { color: 'FF0000' });
             }
             
             // Add headings and their associated content
             scrapedContent.headings.forEach((heading, index) => {
                 pObj = docx.createP();
                 const fontSize = heading.level === 'h1' ? 14 : heading.level === 'h2' ? 13 : 12;
-                pObj.addText(heading.text, { bold: true, font_size: fontSize });
+                pObj.addText(String(heading.text), { bold: true, font_size: fontSize });
                 
                 // Add relevant paragraphs after each heading (simplified approach)
                 if (index < scrapedContent.paragraphs.length) {
                     pObj = docx.createP();
-                    pObj.addText(scrapedContent.paragraphs[index]);
+                    pObj.addText(String(scrapedContent.paragraphs[index]));
                 }
             });
             
             // Add remaining paragraphs if headings are fewer
             for (let i = scrapedContent.headings.length; i < scrapedContent.paragraphs.length; i++) {
                 pObj = docx.createP();
-                pObj.addText(scrapedContent.paragraphs[i]);
+                pObj.addText(String(scrapedContent.paragraphs[i]));
             }
             
             // Add lists
             scrapedContent.lists.forEach(list => {
                 list.items.forEach(item => {
                     pObj = docx.createP();
-                    pObj.addText(`• ${item}`);
+                    pObj.addText(String(`• ${item}`));
                 });
             });
             
