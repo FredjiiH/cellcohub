@@ -5,8 +5,8 @@ class ExcelService {
         this.graphClientService = new GraphClientService();
         this.graphClient = null; // Will be initialized when access token is set
 
-        // Deployment verification - DEPLOYED VERSION 2025-09-15-v2
-        console.log('🚀 ExcelService initialized - Version 2025-09-15-v2 with comment formatting fixes');
+        // Deployment verification - DEPLOYED VERSION 2025-09-15-v3-FORCED
+        console.log('🚀 ExcelService initialized - Version 2025-09-15-v3-FORCED with comment formatting fixes');
         
         // SharePoint site and file configuration
         this.siteId = null; // Will be resolved from site URL
