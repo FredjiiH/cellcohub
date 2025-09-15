@@ -1,7 +1,7 @@
 const GraphClientService = require('./graphClient');
 const fetch = require('node-fetch');
 const cheerio = require('cheerio');
-const officegen = require('officegen');
+const { Document, Packer, Paragraph, TextRun } = require('docx');
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
@@ -182,130 +182,213 @@ class WebPageReviewService {
             // Columns: URL, Purpose, Descriptive Name, Target Audience, Date, Version
             const [url, purpose, descriptiveName, targetAudience, date, version] = pageData.values[0];
             
-            // Ensure all text fields are strings
-            const safeUrl = url ? String(url) : '';
-            const safePurpose = purpose ? String(purpose) : 'Unknown';
-            const safeDescriptiveName = descriptiveName ? String(descriptiveName) : 'Unknown';
-            const safeTargetAudience = targetAudience ? String(targetAudience) : 'Unknown';
-            const safeVersion = version ? String(version) : 'V1';
+            // Convert values to strings and handle missing data
+            const safeUrl = url ? String(url).trim() : 'No URL provided';
+            const safePurpose = purpose ? String(purpose).trim() : 'No Purpose';
+            const safeDescriptiveName = descriptiveName ? String(descriptiveName).trim() : 'No Name';
+            const safeTargetAudience = targetAudience ? String(targetAudience).trim() : 'No Audience';
+            const safeVersion = version ? String(version).trim() : 'V1';
             
-            // Handle date formatting - Excel might return Date object, number, or string
-            let formattedDate;
+            // Handle date formatting
+            let formattedDate = '20250915'; // fallback
             if (date) {
-                if (typeof date === 'string') {
-                    // If it's already a string, just remove slashes
-                    // Double-check it's really a string to be safe
-                    const dateStr = String(date);
-                    formattedDate = dateStr.replace(/\//g, '').replace(/-/g, '');
-                } else if (date instanceof Date) {
-                    // If it's a Date object, format it
-                    formattedDate = date.toISOString().slice(0, 10).replace(/-/g, '');
-                } else if (typeof date === 'number') {
-                    // If it's an Excel serial date number, convert it
-                    const excelDate = new Date((date - 25569) * 86400 * 1000); // Excel epoch is 1900-01-01
-                    formattedDate = excelDate.toISOString().slice(0, 10).replace(/-/g, '');
-                } else {
-                    // Fallback to current date
-                    formattedDate = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+                try {
+                    let dateObj;
+                    if (typeof date === 'number') {
+                        // Excel serial date
+                        dateObj = new Date((date - 25569) * 86400 * 1000);
+                    } else if (date instanceof Date) {
+                        dateObj = date;
+                    } else {
+                        dateObj = new Date(String(date));
+                    }
+                    
+                    if (!isNaN(dateObj.getTime())) {
+                        const year = dateObj.getFullYear();
+                        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                        const day = String(dateObj.getDate()).padStart(2, '0');
+                        formattedDate = `${year}${month}${day}`;
+                    }
+                } catch (e) {
+                    console.log('Date formatting error, using fallback:', e.message);
                 }
-            } else {
-                // No date provided, use current date
-                formattedDate = new Date().toISOString().slice(0, 10).replace(/-/g, '');
             }
             
             const fileName = `${safePurpose} - ${safeTargetAudience} - ${safeDescriptiveName} - ${formattedDate} - ${safeVersion}.docx`;
             
             console.log(`Creating Word document: ${fileName}`);
             
-            // Create a new Word document
-            const docx = officegen('docx');
+            // Create document content
+            const paragraphs = [
+                new Paragraph({
+                    children: [
+                        new TextRun({
+                            text: "Web Page Review Document",
+                            bold: true,
+                            size: 28
+                        })
+                    ]
+                }),
+                new Paragraph({
+                    children: [
+                        new TextRun({
+                            text: "URL to Review:",
+                            bold: true
+                        }),
+                        new TextRun({
+                            text: ` ${safeUrl}`,
+                            break: 1
+                        })
+                    ]
+                }),
+                new Paragraph({
+                    children: [
+                        new TextRun({
+                            text: "Purpose:",
+                            bold: true
+                        }),
+                        new TextRun({
+                            text: ` ${safePurpose}`,
+                            break: 1
+                        })
+                    ]
+                }),
+                new Paragraph({
+                    children: [
+                        new TextRun({
+                            text: "Target Audience:",
+                            bold: true
+                        }),
+                        new TextRun({
+                            text: ` ${safeTargetAudience}`,
+                            break: 1
+                        })
+                    ]
+                }),
+                new Paragraph({
+                    children: [
+                        new TextRun({
+                            text: "Descriptive Name:",
+                            bold: true
+                        }),
+                        new TextRun({
+                            text: ` ${safeDescriptiveName}`,
+                            break: 1
+                        })
+                    ]
+                }),
+                new Paragraph({
+                    children: [
+                        new TextRun({
+                            text: "Version:",
+                            bold: true
+                        }),
+                        new TextRun({
+                            text: ` ${safeVersion}`,
+                            break: 1
+                        })
+                    ]
+                }),
+                new Paragraph({
+                    children: [
+                        new TextRun({
+                            text: "Content Summary:",
+                            bold: true,
+                            break: 2
+                        })
+                    ]
+                })
+            ];
             
-            // Add document properties
-            docx.setDocSubject('Web Page Review');
-            docx.setDocKeywords(['review', 'web page', String(safePurpose), String(safeTargetAudience)]);
-            
-            // Add header with URL
-            let pObj = docx.createP();
-            pObj.addText('Web Page Review Document', { bold: true, font_size: 16 });
-            
-            pObj = docx.createP();
-            pObj.addText('URL: ', { bold: true });
-            pObj.addText(String(safeUrl), { color: '0000FF', underline: true });
-            
-            // Add metadata
-            pObj = docx.createP();
-            pObj.addText('Purpose: ', { bold: true });
-            pObj.addText(String(safePurpose));
-            
-            pObj = docx.createP();
-            pObj.addText('Target Audience: ', { bold: true });
-            pObj.addText(String(safeTargetAudience));
-            
-            pObj = docx.createP();
-            pObj.addText('Descriptive Name: ', { bold: true });
-            pObj.addText(String(safeDescriptiveName));
-            
-            pObj = docx.createP();
-            pObj.addText('Date: ', { bold: true });
-            // Format date for display
-            let displayDate = 'Not specified';
-            if (date) {
-                if (typeof date === 'string') {
-                    displayDate = date;
-                } else if (date instanceof Date) {
-                    displayDate = date.toLocaleDateString();
-                } else if (typeof date === 'number') {
-                    const excelDate = new Date((date - 25569) * 86400 * 1000);
-                    displayDate = excelDate.toLocaleDateString();
+            // Add scraped content if available
+            if (scrapedContent) {
+                if (scrapedContent.title && scrapedContent.title !== 'No title') {
+                    paragraphs.push(new Paragraph({
+                        children: [
+                            new TextRun({
+                                text: "Page Title:",
+                                bold: true
+                            }),
+                            new TextRun({
+                                text: ` ${scrapedContent.title}`,
+                                break: 1
+                            })
+                        ]
+                    }));
                 }
+                
+                if (scrapedContent.headings && scrapedContent.headings.length > 0) {
+                    paragraphs.push(new Paragraph({
+                        children: [
+                            new TextRun({
+                                text: "Headings:",
+                                bold: true,
+                                break: 1
+                            })
+                        ]
+                    }));
+                    
+                    scrapedContent.headings.forEach(heading => {
+                        paragraphs.push(new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: `${heading.level.toUpperCase()}: ${heading.text}`
+                                })
+                            ]
+                        }));
+                    });
+                }
+                
+                if (scrapedContent.paragraphs && scrapedContent.paragraphs.length > 0) {
+                    paragraphs.push(new Paragraph({
+                        children: [
+                            new TextRun({
+                                text: "Content:",
+                                bold: true,
+                                break: 1
+                            })
+                        ]
+                    }));
+                    
+                    scrapedContent.paragraphs.slice(0, 5).forEach(para => {
+                        paragraphs.push(new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: para
+                                })
+                            ]
+                        }));
+                    });
+                }
+            } else {
+                paragraphs.push(new Paragraph({
+                    children: [
+                        new TextRun({
+                            text: "Content will be scraped and added in a future update. Please manually review the content at the URL above."
+                        })
+                    ]
+                }));
             }
-            pObj.addText(String(displayDate));
             
-            pObj = docx.createP();
-            pObj.addText('Version: ', { bold: true });
-            pObj.addText(String(safeVersion));
+            // Create the document
+            const doc = new Document({
+                sections: [{
+                    properties: {},
+                    children: paragraphs
+                }]
+            });
             
-            // Add separator
-            pObj = docx.createP();
-            pObj.addText('________________________________________', { color: '808080' });
+            // Generate document buffer
+            const buffer = await Packer.toBuffer(doc);
             
-            // Add scraped content
-            pObj = docx.createP();
-            pObj.addText('Page Content:', { bold: true, font_size: 14 });
-            
-            // Add simple content - just the title and paragraphs from placeholder content
-            if (scrapedContent.title) {
-                pObj = docx.createP();
-                pObj.addText(String(scrapedContent.title), { italic: true, font_size: 12 });
-                pObj = docx.createP(); // Empty line
-            }
-            
-            // Add paragraphs
-            if (scrapedContent.paragraphs && Array.isArray(scrapedContent.paragraphs)) {
-                scrapedContent.paragraphs.forEach((paragraph) => {
-                    pObj = docx.createP();
-                    pObj.addText(String(paragraph));
-                });
-            }
-            
-            // Generate the document to a temporary file
+            // Write to temporary file
             const tempDir = os.tmpdir();
             const tempFilePath = path.join(tempDir, fileName);
+            await fs.writeFile(tempFilePath, buffer);
             
-            return new Promise((resolve, reject) => {
-                const out = require('fs').createWriteStream(tempFilePath);
-                
-                out.on('error', reject);
-                
-                docx.on('finalize', async () => {
-                    console.log(`Word document created: ${tempFilePath}`);
-                    resolve({ filePath: tempFilePath, fileName: fileName });
-                });
-                
-                docx.on('error', reject);
-                
-                docx.generate(out);
-            });
+            console.log(`Word document created: ${tempFilePath}`);
+            return { filePath: tempFilePath, fileName: fileName };
+            
         } catch (error) {
             console.error('Error creating Word document:', error);
             throw error;
@@ -369,21 +452,11 @@ class WebPageReviewService {
                     
                     console.log(`Processing: ${url}`);
                     
-                    // Skip web scraping for now - create simple document with placeholder content
-                    const placeholderContent = {
-                        title: 'Content will be scraped in future version',
-                        headings: [],
-                        paragraphs: [
-                            'This document was created from the Web Pages Ready to Review spreadsheet.',
-                            'Web scraping functionality will be added in a future update.',
-                            `URL to review: ${url}`,
-                            'Please manually review the content at the URL above.'
-                        ],
-                        lists: []
-                    };
+                    // Scrape web page content
+                    const scrapedContent = await this.scrapeWebPage(url);
                     
-                    // Create Word document with placeholder content
-                    const { filePath, fileName } = await this.createWordDocument(pageData, placeholderContent);
+                    // Create Word document with scraped content
+                    const { filePath, fileName } = await this.createWordDocument(pageData, scrapedContent);
                     
                     // Upload to SharePoint
                     const uploadedFile = await this.uploadToSharePoint(filePath, fileName);
