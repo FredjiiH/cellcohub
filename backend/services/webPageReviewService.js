@@ -114,7 +114,8 @@ class WebPageReviewService {
             
             // Get all headings
             $('h1, h2, h3, h4, h5, h6').each((i, elem) => {
-                const text = $(elem).text().trim();
+                const rawText = $(elem).text();
+                const text = rawText ? String(rawText).trim() : '';
                 if (text) {
                     content.headings.push({
                         level: elem.name,
@@ -125,7 +126,8 @@ class WebPageReviewService {
             
             // Get paragraphs
             $('p').each((i, elem) => {
-                const text = $(elem).text().trim();
+                const rawText = $(elem).text();
+                const text = rawText ? String(rawText).trim() : '';
                 if (text && text.length > 20) { // Filter out very short paragraphs
                     content.paragraphs.push(text);
                 }
@@ -135,7 +137,8 @@ class WebPageReviewService {
             $('ul, ol').each((i, elem) => {
                 const items = [];
                 $(elem).find('li').each((j, li) => {
-                    const text = $(li).text().trim();
+                    const rawText = $(li).text();
+                    const text = rawText ? String(rawText).trim() : '';
                     if (text) {
                         items.push(text);
                     }
@@ -361,7 +364,10 @@ class WebPageReviewService {
             
             for (const pageData of webPages) {
                 try {
-                    const url = pageData.values[0][0]; // First column is URL
+                    const rawUrl = pageData.values[0][0]; // First column is URL
+                    
+                    // Ensure URL is a string
+                    const url = rawUrl ? String(rawUrl).trim() : '';
                     
                     if (!url || url === '') {
                         console.log('Skipping row with empty URL');
@@ -391,7 +397,7 @@ class WebPageReviewService {
                 } catch (error) {
                     console.error(`Error processing web page:`, error);
                     results.errors.push({
-                        url: pageData.values[0][0],
+                        url: url || 'Unknown URL',
                         error: error.message
                     });
                 }
