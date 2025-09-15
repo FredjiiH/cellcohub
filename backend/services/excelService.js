@@ -5,8 +5,8 @@ class ExcelService {
         this.graphClientService = new GraphClientService();
         this.graphClient = null; // Will be initialized when access token is set
 
-        // Deployment verification - DEPLOYED VERSION 2025-09-15-v7-WORKSHEET-FIX
-        console.log('🚀 ExcelService initialized - Version 2025-09-15-v7 - Fixed worksheet names and validation table discovery on Lists worksheet');
+        // Deployment verification - DEPLOYED VERSION 2025-09-15-v8-WORKSHEET-RANGE-API
+        console.log('🚀 ExcelService initialized - Version 2025-09-15-v8 - Using worksheet range API for comment column formatting instead of table API');
         
         // SharePoint site and file configuration
         this.siteId = null; // Will be resolved from site URL
@@ -164,9 +164,8 @@ class ExcelService {
             // Try to preserve/restore dropdown validation for Status and Priority columns
             await this.preserveDataValidation(tableName, fileId);
             
-            // Format comment columns on every row addition for reliability (V2 FIX)
-            console.log(`🎨 V2 FIX: Formatting comment columns for ${tableName}...`);
-            await this.formatCommentColumns(tableName, fileId);
+            // Format comment columns using worksheet range API (more reliable than table API)
+            await this.formatCommentColumnsViaWorksheet(tableName, fileId);
             
             return response;
         } catch (error) {
@@ -748,6 +747,108 @@ class ExcelService {
         } catch (error) {
             console.error(`❌ Error formatting comment columns for ${tableName}:`, error.message);
             // Don't throw - formatting is nice-to-have, not critical
+        }
+    }
+
+    async formatCommentColumnsViaWorksheet(tableName, fileId) {
+        try {
+            console.log(`🎨 Formatting comment columns via worksheet API for ${tableName}...`);
+
+            // Define comment columns and their approximate column letters for each table
+            const commentColumnsByTable = {
+                'Step1_Review': [
+                    { name: 'Michael Comment', letter: 'J' } // Approximate - we'll find the exact position
+                ],
+                'MCL_Review': [
+                    { name: 'Michael Comment', letter: 'J' },
+                    { name: 'Medical Comment', letter: 'K' },
+                    { name: 'Regulatory Comment', letter: 'L' },
+                    { name: 'Legal Comment', letter: 'M' }
+                ]
+            };
+
+            const commentColumns = commentColumnsByTable[tableName];
+            if (!commentColumns) {
+                console.log(`❌ No comment columns defined for table ${tableName}`);
+                return;
+            }
+
+            // First, get the table to find its range and worksheet
+            const tableInfo = await this.graphClient
+                .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/tables/${tableName}`)
+                .get();
+
+            console.log(`📊 Table ${tableName} address: ${tableInfo.address}`);
+
+            // Extract worksheet name from table address (format: Sheet1!$A$1:$M$5)
+            const worksheetName = tableInfo.address ? tableInfo.address.split('!')[0] : 'Step1';
+            console.log(`📝 Using worksheet: ${worksheetName}`);
+
+            // Get table headers to find exact column positions
+            const headers = await this.graphClient
+                .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/tables/${tableName}/headerRowRange`)
+                .get();
+
+            console.log(`📋 Table headers:`, headers.values[0]);
+
+            for (const columnInfo of commentColumns) {
+                try {
+                    // Find the exact column index for this comment column
+                    const columnIndex = headers.values[0].findIndex(header => header === columnInfo.name);
+
+                    if (columnIndex === -1) {
+                        console.log(`⚠️ Column ${columnInfo.name} not found in headers`);
+                        continue;
+                    }
+
+                    // Convert column index to Excel column letter (A=0, B=1, etc.)
+                    const columnLetter = String.fromCharCode(65 + columnIndex);
+                    console.log(`📍 Column ${columnInfo.name} is at index ${columnIndex} (letter ${columnLetter})`);
+
+                    // Parse table address to get the data range
+                    // Format: Sheet1!$A$1:$M$5 -> we want data rows only (skip header)
+                    const addressMatch = tableInfo.address.match(/\$[A-Z]+\$(\d+):\$[A-Z]+\$(\d+)/);
+                    if (!addressMatch) {
+                        console.log(`⚠️ Could not parse table address: ${tableInfo.address}`);
+                        continue;
+                    }
+
+                    const startRow = parseInt(addressMatch[1]) + 1; // Skip header row
+                    const endRow = parseInt(addressMatch[2]);
+
+                    if (startRow > endRow) {
+                        console.log(`⚠️ No data rows to format in ${columnInfo.name}`);
+                        continue;
+                    }
+
+                    // Create range for this column's data (e.g., "J2:J5")
+                    const columnRange = `${columnLetter}${startRow}:${columnLetter}${endRow}`;
+                    console.log(`📏 Formatting range: ${worksheetName}!${columnRange}`);
+
+                    // Apply formatting to the column range using worksheet API
+                    await this.graphClient
+                        .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/worksheets('${worksheetName}')/range(address='${columnRange}')`)
+                        .patch({
+                            format: {
+                                wrapText: true
+                            }
+                        });
+
+                    console.log(`✅ Successfully formatted ${columnInfo.name} at range ${columnRange}`);
+
+                    // Small delay to prevent throttling
+                    await this.delay(200);
+
+                } catch (columnError) {
+                    console.error(`❌ Error formatting column ${columnInfo.name}:`, columnError.message);
+                }
+            }
+
+            console.log(`✅ Completed formatting comment columns for ${tableName}`);
+
+        } catch (error) {
+            console.error(`❌ Error in formatCommentColumnsViaWorksheet:`, error.message);
+            // Don't throw - continue with other operations
         }
     }
 
