@@ -5,8 +5,8 @@ class ExcelService {
         this.graphClientService = new GraphClientService();
         this.graphClient = null; // Will be initialized when access token is set
 
-        // Deployment verification - DEPLOYED VERSION 2025-09-15-v6-FORMAT-FIX
-        console.log('🚀 ExcelService initialized - Version 2025-09-15-v6 - Fixed formatting errors and improved table discovery');
+        // Deployment verification - DEPLOYED VERSION 2025-09-15-v7-WORKSHEET-FIX
+        console.log('🚀 ExcelService initialized - Version 2025-09-15-v7 - Fixed worksheet names and validation table discovery on Lists worksheet');
         
         // SharePoint site and file configuration
         this.siteId = null; // Will be resolved from site URL
@@ -374,6 +374,24 @@ class ExcelService {
                 if (validationTableName) {
                     console.log(`📊 Attempting to use validation table: ${validationTableName}`);
 
+                    // First check if table exists on Lists worksheet
+                    try {
+                        // Try to get tables from Lists worksheet specifically
+                        const listsWorksheetTables = await this.graphClient
+                            .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/worksheets('Lists')/tables`)
+                            .get();
+
+                        console.log(`📋 Tables on Lists worksheet:`, listsWorksheetTables.value.map(t => t.name));
+
+                        // Check if our validation table is there
+                        const hasValidationTable = listsWorksheetTables.value.some(t => t.name === validationTableName);
+                        if (hasValidationTable) {
+                            console.log(`✅ Found ${validationTableName} table on Lists worksheet`);
+                        }
+                    } catch (listsError) {
+                        console.log(`⚠️ Could not check Lists worksheet: ${listsError.message}`);
+                    }
+
                     // Get the validation table's data range
                     const validationTableRange = await this.graphClient
                         .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/tables/${validationTableName}/dataBodyRange`)
@@ -385,9 +403,14 @@ class ExcelService {
                     const apiUrl = `/sites/${this.siteId}/drive/items/${fileId}/workbook/tables/${tableName}/columns('${columnName}')/dataBodyRange`;
                     console.log(`📡 Applying validation to column via: ${apiUrl}`);
 
+                    // If validation table is on Lists worksheet, use proper reference
+                    const tableReference = validationTableRange.address.includes('Lists!')
+                        ? `=Lists.${validationTableName}[${validationTableName}]`  // Reference table on Lists worksheet
+                        : `=${validationTableName}[${validationTableName}]`;       // Reference table on same worksheet
+
                     const validationRule = {
                         type: 'List',
-                        source: `=${validationTableName}[${validationTableName}]`,  // Reference the table column
+                        source: tableReference,
                         allowBlank: columnName === 'Priority',
                         showInputMessage: true,
                         inputTitle: columnName,
@@ -601,7 +624,14 @@ class ExcelService {
                             .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/tables/${tableName}`)
                             .get();
 
-                        console.log(`📊 Table ${tableName} range: ${tableInfo.address}`);
+                        // Log full table info to debug undefined range
+                        console.log(`📊 Table ${tableName} info:`, {
+                            name: tableInfo.name,
+                            address: tableInfo.address,
+                            showHeaders: tableInfo.showHeaders,
+                            showTotals: tableInfo.showTotals,
+                            style: tableInfo.style
+                        });
 
                         // Get the specific column data range from the table
                         const columnData = await this.graphClient
@@ -686,7 +716,8 @@ class ExcelService {
                                     .get();
 
                                 // Extract worksheet name from table info if available
-                                const worksheetName = tableInfo.worksheet?.name || 'Sheet1';
+                                // For Step1_Review table, the worksheet is 'Step1', not 'Sheet1'
+                                const worksheetName = tableInfo.worksheet?.name || (tableName === 'Step1_Review' ? 'Step1' : 'Sheet1');
                                 const columnLetter = this.getColumnLetter(columnIndex);
 
                                 console.log(`📝 Using worksheet ${worksheetName}, column ${columnLetter}`);
