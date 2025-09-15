@@ -69,6 +69,7 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
   const [webPageReviewLoading, setWebPageReviewLoading] = useState(false);
   const [webPageReviewResult, setWebPageReviewResult] = useState<any>(null);
 
+
   const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
 
   const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -338,6 +339,7 @@ const ContentApprovalDashboard: React.FC<ContentApprovalDashboardProps> = ({ use
       setWebPageReviewLoading(false);
     }
   };
+
 
   useEffect(() => {
     if (user) {

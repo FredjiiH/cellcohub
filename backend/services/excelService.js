@@ -10,6 +10,9 @@ class ExcelService {
         this.driveId = null; // Will be resolved from site
         this.step1FileId = null; // Content_Review_step1.xlsx
         this.mrlFileId = null; // Content Review sheet Medical Regulatory and Legal.xlsx
+        
+        // Track which tables have been formatted in this session
+        this.formattedTables = new Set();
     }
 
     async initialize() {
@@ -146,6 +149,13 @@ class ExcelService {
             
             // Try to preserve/restore dropdown validation for Status and Priority columns
             await this.preserveDataValidation(tableName, fileId);
+            
+            // Format comment columns if not already done in this session
+            if (!this.formattedTables.has(tableName)) {
+                console.log(`🎨 First row added to ${tableName}, formatting comment columns...`);
+                await this.formatCommentColumns(tableName, fileId);
+                this.formattedTables.add(tableName);
+            }
             
             return response;
         } catch (error) {
@@ -449,6 +459,82 @@ class ExcelService {
 
         return columnMaps[tableName]?.[columnName];
     }
+
+    async formatCommentColumns(tableName, fileId) {
+        try {
+            console.log(`🎨 Formatting comment columns for ${tableName}...`);
+            
+            // Define comment columns for each table
+            const commentColumnsByTable = {
+                'Step1_Review': ['Michael Comments'],
+                'MCL_Review': ['Michael Comment', 'Medical Comment', 'Regulatory Comment', 'Legal Comment']
+            };
+            
+            const commentColumns = commentColumnsByTable[tableName];
+            if (!commentColumns) {
+                console.log(`No comment columns defined for table ${tableName}`);
+                return;
+            }
+            
+            for (const columnName of commentColumns) {
+                const columnIndex = this.getColumnIndex(tableName, columnName);
+                if (columnIndex !== undefined) {
+                    const columnLetter = this.getColumnLetter(columnIndex);
+                    
+                    console.log(`🎨 Formatting column ${columnName} (${columnLetter}) in ${tableName}`);
+                    
+                    try {
+                        // Apply text wrapping and formatting to the entire column
+                        await this.graphClient
+                            .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/worksheets/Sheet1/range(address='${columnLetter}:${columnLetter}')`)
+                            .patch({
+                                format: {
+                                    wrapText: true,
+                                    rowHeight: 60
+                                }
+                            });
+                        
+                        console.log(`✅ Successfully formatted column ${columnName} (${columnLetter})`);
+                        
+                        // Small delay to prevent API throttling
+                        await this.delay(200);
+                        
+                    } catch (columnError) {
+                        console.error(`❌ Error formatting column ${columnName}:`, columnError.message);
+                        
+                        // Try alternative approach with specific range
+                        try {
+                            console.log(`🔄 Trying alternative formatting approach for ${columnName}...`);
+                            
+                            // Format a large range instead of entire column (rows 2-1000 to skip header)
+                            await this.graphClient
+                                .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/worksheets/Sheet1/range(address='${columnLetter}2:${columnLetter}1000')`)
+                                .patch({
+                                    format: {
+                                        wrapText: true,
+                                        rowHeight: 60
+                                    }
+                                });
+                            
+                            console.log(`✅ Alternative formatting successful for ${columnName}`);
+                            
+                        } catch (altError) {
+                            console.error(`❌ Alternative formatting also failed for ${columnName}:`, altError.message);
+                        }
+                    }
+                } else {
+                    console.log(`⚠️  Column ${columnName} not found in ${tableName}, skipping formatting`);
+                }
+            }
+            
+            console.log(`✅ Comment column formatting completed for ${tableName}`);
+            
+        } catch (error) {
+            console.error(`❌ Error formatting comment columns for ${tableName}:`, error.message);
+            // Don't throw - formatting is nice-to-have, not critical
+        }
+    }
+
 }
 
 module.exports = ExcelService;
