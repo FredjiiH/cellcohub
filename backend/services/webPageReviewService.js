@@ -280,8 +280,16 @@ class WebPageReviewService {
             pObj = docx.createP();
             pObj.addText('Page Content:', { bold: true, font_size: 14 });
             
+            console.log('Scraped content structure:', {
+                title: typeof scrapedContent.title,
+                headings: scrapedContent.headings?.length || 0,
+                paragraphs: scrapedContent.paragraphs?.length || 0,
+                lists: scrapedContent.lists?.length || 0
+            });
+            
             // Add title
             if (scrapedContent.title) {
+                console.log(`Adding title: ${typeof scrapedContent.title} = "${scrapedContent.title}"`);
                 pObj = docx.createP();
                 pObj.addText(String(`Page Title: ${scrapedContent.title}`), { italic: true });
             }
@@ -294,12 +302,14 @@ class WebPageReviewService {
             
             // Add headings and their associated content
             scrapedContent.headings.forEach((heading, index) => {
+                console.log(`Adding heading ${index}: ${typeof heading.text} = "${heading.text?.substring(0, 50)}..."`);
                 pObj = docx.createP();
                 const fontSize = heading.level === 'h1' ? 14 : heading.level === 'h2' ? 13 : 12;
                 pObj.addText(String(heading.text), { bold: true, font_size: fontSize });
                 
                 // Add relevant paragraphs after each heading (simplified approach)
                 if (index < scrapedContent.paragraphs.length) {
+                    console.log(`Adding paragraph ${index}: ${typeof scrapedContent.paragraphs[index]} = "${String(scrapedContent.paragraphs[index]).substring(0, 50)}..."`);
                     pObj = docx.createP();
                     pObj.addText(String(scrapedContent.paragraphs[index]));
                 }
