@@ -216,13 +216,6 @@ class WebPageReviewService {
             const fileName = `${safePurpose} - ${safeTargetAudience} - ${safeDescriptiveName} - ${formattedDate} - ${safeVersion}.docx`;
             
             console.log(`Creating Word document: ${fileName}`);
-            console.log('Data types being used:', {
-                safePurpose: typeof safePurpose,
-                safeTargetAudience: typeof safeTargetAudience,
-                safeDescriptiveName: typeof safeDescriptiveName,
-                safeVersion: typeof safeVersion,
-                formattedDate: typeof formattedDate
-            });
             
             // Create a new Word document
             const docx = officegen('docx');
@@ -280,54 +273,20 @@ class WebPageReviewService {
             pObj = docx.createP();
             pObj.addText('Page Content:', { bold: true, font_size: 14 });
             
-            console.log('Scraped content structure:', {
-                title: typeof scrapedContent.title,
-                headings: scrapedContent.headings?.length || 0,
-                paragraphs: scrapedContent.paragraphs?.length || 0,
-                lists: scrapedContent.lists?.length || 0
-            });
-            
-            // Add title
+            // Add simple content - just the title and paragraphs from placeholder content
             if (scrapedContent.title) {
-                console.log(`Adding title: ${typeof scrapedContent.title} = "${scrapedContent.title}"`);
                 pObj = docx.createP();
-                pObj.addText(String(`Page Title: ${scrapedContent.title}`), { italic: true });
+                pObj.addText(String(scrapedContent.title), { italic: true, font_size: 12 });
+                pObj = docx.createP(); // Empty line
             }
             
-            // Add error if scraping failed
-            if (scrapedContent.error) {
-                pObj = docx.createP();
-                pObj.addText(String(`Error: ${scrapedContent.error}`), { color: 'FF0000' });
-            }
-            
-            // Add headings and their associated content
-            scrapedContent.headings.forEach((heading, index) => {
-                console.log(`Adding heading ${index}: ${typeof heading.text} = "${heading.text?.substring(0, 50)}..."`);
-                pObj = docx.createP();
-                const fontSize = heading.level === 'h1' ? 14 : heading.level === 'h2' ? 13 : 12;
-                pObj.addText(String(heading.text), { bold: true, font_size: fontSize });
-                
-                // Add relevant paragraphs after each heading (simplified approach)
-                if (index < scrapedContent.paragraphs.length) {
-                    console.log(`Adding paragraph ${index}: ${typeof scrapedContent.paragraphs[index]} = "${String(scrapedContent.paragraphs[index]).substring(0, 50)}..."`);
+            // Add paragraphs
+            if (scrapedContent.paragraphs && Array.isArray(scrapedContent.paragraphs)) {
+                scrapedContent.paragraphs.forEach((paragraph) => {
                     pObj = docx.createP();
-                    pObj.addText(String(scrapedContent.paragraphs[index]));
-                }
-            });
-            
-            // Add remaining paragraphs if headings are fewer
-            for (let i = scrapedContent.headings.length; i < scrapedContent.paragraphs.length; i++) {
-                pObj = docx.createP();
-                pObj.addText(String(scrapedContent.paragraphs[i]));
-            }
-            
-            // Add lists
-            scrapedContent.lists.forEach(list => {
-                list.items.forEach(item => {
-                    pObj = docx.createP();
-                    pObj.addText(String(`• ${item}`));
+                    pObj.addText(String(paragraph));
                 });
-            });
+            }
             
             // Generate the document to a temporary file
             const tempDir = os.tmpdir();
@@ -410,11 +369,21 @@ class WebPageReviewService {
                     
                     console.log(`Processing: ${url}`);
                     
-                    // Scrape the web page
-                    const scrapedContent = await this.scrapeWebPage(url);
+                    // Skip web scraping for now - create simple document with placeholder content
+                    const placeholderContent = {
+                        title: 'Content will be scraped in future version',
+                        headings: [],
+                        paragraphs: [
+                            'This document was created from the Web Pages Ready to Review spreadsheet.',
+                            'Web scraping functionality will be added in a future update.',
+                            `URL to review: ${url}`,
+                            'Please manually review the content at the URL above.'
+                        ],
+                        lists: []
+                    };
                     
-                    // Create Word document
-                    const { filePath, fileName } = await this.createWordDocument(pageData, scrapedContent);
+                    // Create Word document with placeholder content
+                    const { filePath, fileName } = await this.createWordDocument(pageData, placeholderContent);
                     
                     // Upload to SharePoint
                     const uploadedFile = await this.uploadToSharePoint(filePath, fileName);
