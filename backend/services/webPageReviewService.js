@@ -83,6 +83,7 @@ class WebPageReviewService {
                 .api(`/sites/${this.siteId}/drive/items/${this.webPagesFileId}/workbook/tables/${tableName}/rows`)
                 .get();
 
+            console.log('Raw spreadsheet data:', JSON.stringify(rows.value, null, 2));
             return rows.value || [];
         } catch (error) {
             console.error('Error getting web pages to review:', error);
@@ -179,8 +180,11 @@ class WebPageReviewService {
     async createWordDocument(pageData, scrapedContent) {
         try {
             // Extract data from the row
-            // Columns: URL, Purpose, Descriptive Name, Target Audience, Date, Version
-            const [url, purpose, descriptiveName, targetAudience, date, version] = pageData.values[0];
+            // Columns: URL, Purpose, Descriptive Name, Target Audience, Date, Version, Context (updated structure)
+            const rowData = pageData.values[0];
+            console.log('Row data for document creation:', rowData);
+            
+            const [url, purpose, descriptiveName, targetAudience, date, version, context] = rowData;
             
             // Convert values to strings and handle missing data
             const safeUrl = url ? String(url).trim() : 'No URL provided';
@@ -188,15 +192,23 @@ class WebPageReviewService {
             const safeDescriptiveName = descriptiveName ? String(descriptiveName).trim() : 'No Name';
             const safeTargetAudience = targetAudience ? String(targetAudience).trim() : 'No Audience';
             const safeVersion = version ? String(version).trim() : 'V1';
+            const safeContext = context ? String(context).trim() : '';
             
-            // Handle date formatting
+            // Handle date formatting - Excel serial date conversion
             let formattedDate = '20250915'; // fallback
+            let readableDate = 'No date provided';
+            
             if (date) {
+                console.log('Processing date:', date, 'Type:', typeof date);
                 try {
                     let dateObj;
                     if (typeof date === 'number') {
-                        // Excel serial date
+                        // Excel serial date - convert to JavaScript Date
+                        // Excel epoch starts at 1900-01-01, but has a leap year bug (day 60 = Feb 29, 1900)
+                        // JavaScript Date epoch starts at 1970-01-01
+                        // Formula: (excel_date - 25569) * 86400 * 1000
                         dateObj = new Date((date - 25569) * 86400 * 1000);
+                        console.log('Converted Excel serial date to:', dateObj);
                     } else if (date instanceof Date) {
                         dateObj = date;
                     } else {
@@ -208,6 +220,8 @@ class WebPageReviewService {
                         const month = String(dateObj.getMonth() + 1).padStart(2, '0');
                         const day = String(dateObj.getDate()).padStart(2, '0');
                         formattedDate = `${year}${month}${day}`;
+                        readableDate = `${year}-${month}-${day}`;
+                        console.log('Final formatted date:', formattedDate, 'Readable:', readableDate);
                     }
                 } catch (e) {
                     console.log('Date formatting error, using fallback:', e.message);
@@ -292,13 +306,43 @@ class WebPageReviewService {
                 new Paragraph({
                     children: [
                         new TextRun({
-                            text: "Content Summary:",
-                            bold: true,
-                            break: 2
+                            text: "Date:",
+                            bold: true
+                        }),
+                        new TextRun({
+                            text: ` ${readableDate}`,
+                            break: 1
                         })
                     ]
                 })
             ];
+            
+            // Add Context field if available
+            if (safeContext) {
+                paragraphs.push(new Paragraph({
+                    children: [
+                        new TextRun({
+                            text: "Context:",
+                            bold: true
+                        }),
+                        new TextRun({
+                            text: ` ${safeContext}`,
+                            break: 1
+                        })
+                    ]
+                }));
+            }
+            
+            // Add Content Summary section
+            paragraphs.push(new Paragraph({
+                children: [
+                    new TextRun({
+                        text: "Content Summary:",
+                        bold: true,
+                        break: 2
+                    })
+                ]
+            }));
             
             // Add scraped content if available
             if (scrapedContent) {
