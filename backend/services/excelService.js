@@ -5,8 +5,8 @@ class ExcelService {
         this.graphClientService = new GraphClientService();
         this.graphClient = null; // Will be initialized when access token is set
 
-        // Deployment verification - DEPLOYED VERSION 2025-09-15-v4-TABLE-API-FIX
-        console.log('🚀 ExcelService initialized - Version 2025-09-15-v4 - Fixed table column formatting using proper table API endpoints');
+        // Deployment verification - DEPLOYED VERSION 2025-09-15-v5-NAMED-TABLES
+        console.log('🚀 ExcelService initialized - Version 2025-09-15-v5 - Using named validation tables (Status, Priority, MCLStatus, PriorityValues, RiskScale)');
         
         // SharePoint site and file configuration
         this.siteId = null; // Will be resolved from site URL
@@ -301,19 +301,22 @@ class ExcelService {
     async preserveDataValidation(tableName, fileId) {
         try {
             console.log(`🔄 Attempting to preserve data validation for ${tableName}...`);
-            
-            // The fundamental issue: Excel tables don't always preserve data validation 
-            // when rows are added programmatically. Let's try a workaround.
-            
-            const validationColumns = ['Status', 'Priority'];
-            
+
+            // Define which columns need validation based on the table
+            let validationColumns = ['Status', 'Priority'];
+
+            // Add Risk columns for MCL sheet
+            if (tableName === 'MCL_Review') {
+                validationColumns.push('Medical Risk', 'Regulatory Risk', 'Legal Risk');
+            }
+
             for (const columnName of validationColumns) {
                 const columnIndex = this.getColumnIndex(tableName, columnName);
                 if (columnIndex === undefined) {
-                    console.log(`${columnName} column not found, skipping`);
+                    console.log(`${columnName} column not found in ${tableName}, skipping`);
                     continue;
                 }
-                
+
                 await this.applyColumnValidation(tableName, fileId, columnName, columnIndex);
             }
         } catch (error) {
@@ -323,28 +326,88 @@ class ExcelService {
 
     async applyColumnValidation(tableName, fileId, columnName, columnIndex) {
         try {
-            console.log(`🔄 Applying ${columnName} validation...`);
+            console.log(`🔄 Applying ${columnName} validation for table ${tableName}...`);
 
-            // Define validation options based on column
-            let options;
+            // Map column names to their validation source tables
+            // Step1 sheet tables: Step1_Review (main), Status, Priority
+            // MCL sheet tables: MCL_Review (main), MCLStatus, PriorityValues, RiskScale
+            let validationTableName;
+            let fallbackOptions;
+
             if (columnName === 'Status') {
-                options = tableName === 'Step1_Review'
-                    ? ['Pending Michael Review', 'Need MCL Review', 'Fast track', 'Rejected']
-                    : ['In Progress', 'Completed', 'On Hold'];
+                if (tableName === 'Step1_Review') {
+                    validationTableName = 'Status';  // Table in Step1 sheet
+                    fallbackOptions = ['Pending Michael Review', 'Need MCL Review', 'Fast track', 'Rejected'];
+                } else if (tableName === 'MCL_Review') {
+                    validationTableName = 'MCLStatus';  // Table in MCL sheet
+                    fallbackOptions = ['In Progress', 'Completed', 'On Hold'];
+                }
             } else if (columnName === 'Priority') {
-                options = ['Low', 'Normal', 'High', 'Urgent'];
+                if (tableName === 'Step1_Review') {
+                    validationTableName = 'Priority';  // Table in Step1 sheet
+                } else if (tableName === 'MCL_Review') {
+                    validationTableName = 'PriorityValues';  // Table in MCL sheet
+                }
+                fallbackOptions = ['Low', 'Normal', 'High', 'Urgent'];
+            } else if (columnName.includes('Risk')) {
+                // For Medical Risk, Regulatory Risk, Legal Risk columns in MCL
+                validationTableName = 'RiskScale';
+                fallbackOptions = ['Not assessed', 'Low', 'Medium', 'High'];
             } else {
+                console.log(`⚠️ No validation mapping for column ${columnName}`);
                 return;
             }
 
             try {
-                // Try to apply validation using the table column's data body range
+                // First, try to reference the validation table directly
+                if (validationTableName) {
+                    console.log(`📊 Attempting to use validation table: ${validationTableName}`);
+
+                    // Get the validation table's data range
+                    const validationTableRange = await this.graphClient
+                        .api(`/sites/${this.siteId}/drive/items/${fileId}/workbook/tables/${validationTableName}/dataBodyRange`)
+                        .get();
+
+                    console.log(`✅ Found validation table ${validationTableName} at range: ${validationTableRange.address}`);
+
+                    // Apply validation using the table reference
+                    const apiUrl = `/sites/${this.siteId}/drive/items/${fileId}/workbook/tables/${tableName}/columns('${columnName}')/dataBodyRange`;
+                    console.log(`📡 Applying validation to column via: ${apiUrl}`);
+
+                    const validationRule = {
+                        type: 'List',
+                        source: `=${validationTableName}[${validationTableName}]`,  // Reference the table column
+                        allowBlank: columnName === 'Priority',
+                        showInputMessage: true,
+                        inputTitle: columnName,
+                        inputMessage: `Select a ${columnName.toLowerCase()} from the dropdown`,
+                        showErrorMessage: true,
+                        errorTitle: `Invalid ${columnName}`,
+                        errorMessage: `Please choose a valid ${columnName.toLowerCase()} option`
+                    };
+
+                    await this.graphClient
+                        .api(apiUrl)
+                        .patch({
+                            dataValidation: validationRule
+                        });
+
+                    console.log(`✅ Successfully applied ${columnName} validation using table ${validationTableName}`);
+                    return;
+                }
+            } catch (tableRefError) {
+                console.log(`⚠️ Could not use table reference for validation: ${tableRefError.message}`);
+                console.log(`🔄 Falling back to direct list values...`);
+            }
+
+            // Fallback to using direct list values
+            try {
                 const apiUrl = `/sites/${this.siteId}/drive/items/${fileId}/workbook/tables/${tableName}/columns('${columnName}')/dataBodyRange`;
-                console.log(`📡 Applying validation via table column API: ${apiUrl}`);
+                console.log(`📡 Applying validation with direct values via: ${apiUrl}`);
 
                 const validationRule = {
                     type: 'List',
-                    source: options.join(','),
+                    source: fallbackOptions.join(','),
                     allowBlank: columnName === 'Priority',
                     showInputMessage: true,
                     inputTitle: columnName,
@@ -360,7 +423,7 @@ class ExcelService {
                         dataValidation: validationRule
                     });
 
-                console.log(`✅ Successfully applied ${columnName} validation via table column API`);
+                console.log(`✅ Successfully applied ${columnName} validation using direct list values`);
 
             } catch (tableApiError) {
                 console.log(`⚠️ Table column API failed, trying with column index...`);
